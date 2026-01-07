@@ -18,10 +18,9 @@ I don't think dates are necessary on these tables as we'll have a change log (de
 *   Description
 *   Status: incomplete, done or archived. Because there are only three statuses, I think these values can be hard-coded rather than referencing another table.
 *   Creator
-*   Datetime
-*   \- this is the day on which it should appear on my list. I may treat it as a due date or simply informational. A later version may implment these as separate properties, but right now, there should just be one date and the user can use it however they want.
+*   Datetime - this is the day on which it should appear on my list. I may treat it as a due date or simply informational. A later version may implment these as separate properties, but right now, there should just be one date and the user can use it however they want.
 *   Project ID - can be null
-*   Recurrence pattern - null or "daily" or "every second Tuesday" or whtaever terms the user used.
+*   Recurrence pattern - null or "daily" or "every second Tuesday" or whatever terms the user used.
 
 ### Task attachments
 
