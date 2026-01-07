@@ -1,10 +1,13 @@
+## Background
+This is the spec I fed to Claude to get the first draft of this software created. After some back and forth, there were features added/changed, but I include this here because I thought it might be interesting.
+
+## Summary
+
 Task Fiend is a to-do list software written in Laravel to run on a Debian variant of Linux. Because I'm only expecting two or three users, Sqlite is fine. Please use Alpine as the frontend.
 
 There's an open source project, DoneTick, which is very similar. The API endpoint to create tasks theoretically supports recurring, but it's broken. I offered a fix but never heard back.
 
-There is probably functionality I failed to mention. Please mirror Todoist if details are lacking.
 
-Please do not reference Todoist even in comments. If I open source this, I would prefer not to get a letter from Todoist's lawyers.
 
 ## Properties
 
@@ -80,7 +83,7 @@ A user can see a project if they created it or if they're assigned a task within
 *   Created date
 *   Valid - null if valid, datetime if invalid
 
-## Ways it Should Differ from Todoist
+## Ways it Should Differ from Existing Software
 
 ### Can Assign Tasks to Multiple Users
 
@@ -106,14 +109,14 @@ A user can see a project if they created it or if they're assigned a task within
 *   A task in detail view will have an option under the menu that shows more options to be archived. This will dismiss it like marking a task as done, except that when a list of colored tasks is generated, it shouldn't include archived tasks. Anyone assigned to a task can change its status.
 *   Projects can be marked as done or archived.
 *   Tasks and projects cannot be deleted, only completed or archived.
-*   Todoist supports sections of lists that can be viewed as a kanban board. Task Fiend doesn't need that functionality at this time.
+*   Some task software supports a kanban boards. Task Fiend doesn't need that functionality at this time.
 *   Dates humans see should be in the format Weekday, Month number day, four digit year. For example, Monday, November 10, 2025.
 
 ## Some of the Ways in Which it Should Be the Same:
 
 ### Dates
 
-Todoist is very good at interpreting inline human dates. This is more or less identical to how Todoist does it.
+I like software that is very good at interpreting inline human dates.
 
 #### Date Formats
 
@@ -136,7 +139,7 @@ A date in the format \[four digits\]-\[two digits\]-\[two digits\] should be ass
 *   When a recurring task is completed, mark the status as completed and create a new one on the next date with matching title, description, attachments and assignee(s). Don't duplicate comments or comment attachments onto the new version.
 *   Don't let more than one occurrence exist: if I have a daily task to brush my teeth, and I don't mark it done today, don't create a new one tomorrow. Leave the task in the overdue pile.
 *   Store the recurrence pattern (e.g., "every Monday") in the database so it can be displayed and edited.
-*   Like Todoist, it should have an API which will authenticate users with a bearer token created by the script described above. The API doesn't need to be as complete as Todoist's, but it should have the following endpoints:
+*   It should have an API which will authenticate users with a bearer token created by the script described above. The API doesn't need to be comprehensive, but it should have the following endpoints:
     *   Create tasks - it should support all the recurring date formats listed above
     *   List all tasks completed on a given day which will be supplied in the format YYYY-MM-DD. 2025-11-10 would be November 10, 2025.
     *   Retrieve all tasks on the supplied day. Same format as above.
@@ -145,7 +148,7 @@ A date in the format \[four digits\]-\[two digits\]-\[two digits\] should be ass
 ### Other Task Properties
 
 *   Tasks can have tags - see table description toward the top of this document.
-*   Tasks can be in up to one project. The free version of Todoist only supports 3 projects. Task Fiend should support however many Sqlite's digit type will support. A task should only be in one project, but can be moved between projects.
+*   Tasks can be in up to one project. Task Fiend should support however many projects Sqlite's integer type will support. A task should only be in one project, but can be moved between projects.
 
 ### Para-Task Funtionality
 
@@ -177,8 +180,7 @@ Show all tasks with no project assigned in a list called Inbox.
 *   All pages should work on both desktop and smaller screens like phones.
 *   When I first log in, I should see a list of tasks assigned to today.
 *   Please sort tasks by the datetime.
-*   I think Todoist has a monthly calendar view for paid users, but I'm not a paid user, so I can't speak to the finer points of how it behaves.
-    *   It should look like Google Calendar. See [https://res.cloudinary.com/imagist/image/fetch/q\_auto/f\_auto/c\_scale,w\_2624/https://get.todoist.help/hc/article\_attachments/360010910199](https://res.cloudinary.com/imagist/image/fetch/q_auto/f_auto/c_scale,w_2624/https://get.todoist.help/hc/article_attachments/360010910199)
+    *   It should look like Google Calendar
     *   If there are more tasks than fit in the box, please hide overflow rather than making the day very tall.
     *   When they click on a day, they should see the complete list of all tasks on that day. I'm thinking modal for this, but I'm open to other ideas.
 *   When a user clicks a task (whether they're in the today view or the calendar view or elsewhere), a panel should pop out from the right with the task details.
