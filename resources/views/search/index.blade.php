@@ -1,0 +1,370 @@
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-100 leading-tight">
+            {{ __('Search Tasks') }}
+        </h2>
+    </x-slot>
+
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+            <!-- Search Form -->
+            <div class="bg-gray-800 border border-gray-700 overflow-hidden shadow-sm sm:rounded-lg p-6" x-data="searchFilter(@js($projects), @js($tags))">
+                <form method="GET" action="{{ route('search') }}" @submit="prepareSubmit">
+                    <!-- Main Search Input -->
+                    <div class="mb-4 relative">
+                        <label for="search" class="block text-sm font-medium text-gray-300 mb-2">
+                            Search
+                            <span class="text-xs text-gray-500 font-normal">(use #project or @tag to filter)</span>
+                        </label>
+                        <input type="text"
+                               x-model="searchInput"
+                               @input="handleInput"
+                               @keydown="handleKeydown($event)"
+                               @blur="hideAutocomplete"
+                               id="search"
+                               x-ref="searchInput"
+                               class="w-full rounded-md bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-500 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                               placeholder="e.g., meeting #work @urgent">
+
+                        <!-- Autocomplete Dropdown -->
+                        <div x-show="showAutocomplete"
+                             x-transition
+                             class="absolute z-10 mt-1 w-full bg-gray-700 border border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+                            <template x-if="autocompleteType === 'project'">
+                                <div>
+                                    <div class="px-3 py-2 text-xs font-semibold text-gray-400 bg-gray-800 border-b border-gray-600">Projects</div>
+                                    <div class="px-2 py-1 hover:bg-gray-600 cursor-pointer text-sm text-gray-300"
+                                         @click.prevent="selectAutocomplete('inbox')"
+                                         :class="{ 'bg-gray-600': autocompleteIndex === 0 }">
+                                        <span class="font-medium">My Inbox</span>
+                                    </div>
+                                    <template x-for="(project, index) in filteredProjects" :key="project.id">
+                                        <div class="px-2 py-1 hover:bg-gray-600 cursor-pointer text-sm text-gray-300"
+                                             @click.prevent="selectAutocomplete(project.name)"
+                                             :class="{ 'bg-gray-600': autocompleteIndex === index + 1 }">
+                                            <span x-text="project.name"></span>
+                                        </div>
+                                    </template>
+                                    <div x-show="filteredProjects.length === 0" class="px-3 py-2 text-sm text-gray-500 italic">
+                                        No matching projects
+                                    </div>
+                                </div>
+                            </template>
+
+                            <template x-if="autocompleteType === 'tag'">
+                                <div>
+                                    <div class="px-3 py-2 text-xs font-semibold text-gray-400 bg-gray-800 border-b border-gray-600">Tags</div>
+                                    <template x-for="(tag, index) in filteredTags" :key="tag.id">
+                                        <div class="px-2 py-1 hover:bg-gray-600 cursor-pointer text-sm flex items-center"
+                                             @click.prevent="selectAutocomplete(tag.tag_name)"
+                                             :class="{ 'bg-gray-600': autocompleteIndex === index }">
+                                            <span :style="'color: ' + tag.color" x-text="tag.tag_name"></span>
+                                        </div>
+                                    </template>
+                                    <div x-show="filteredTags.length === 0" class="px-3 py-2 text-sm text-gray-500 italic">
+                                        No matching tags
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <p class="mt-1 text-xs text-gray-500">
+                            Type <code class="bg-gray-700 px-1 rounded">#{'}#{'}</code> for projects
+                            or <code class="bg-gray-700 px-1 rounded">@</code> for tags - autocomplete will appear!
+                        </p>
+                    </div>
+
+                    <!-- Hidden form fields -->
+                    <input type="hidden" name="q" x-model="queryText">
+                    <input type="hidden" name="project_id" x-model="selectedProjectId">
+                    <template x-for="tagId in selectedTagIds" :key="tagId">
+                        <input type="hidden" name="tag_ids[]" :value="tagId">
+                    </template>
+
+                    <!-- Project Filter -->
+                    <div class="mb-4">
+                        <label for="project_filter" class="block text-sm font-medium text-gray-300 mb-2">Project</label>
+                        <select x-model="selectedProjectId"
+                                @change="updateSearchFromFilters"
+                                id="project_filter"
+                                class="w-full rounded-md bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-500 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="none">No project filter (search all)</option>
+                            <option value="inbox">My Inbox</option>
+                            <template x-for="project in projects" :key="project.id">
+                                <option :value="project.id" x-text="project.name"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <!-- Tag Cloud -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Tags</label>
+                        <div class="flex flex-wrap gap-2">
+                            <template x-for="tag in tags" :key="tag.id">
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="checkbox"
+                                           :value="tag.id"
+                                           @change="toggleTag(tag.id)"
+                                           :checked="selectedTagIds.includes(tag.id)"
+                                           class="rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500">
+                                    <span class="ml-2 text-sm" :style="'color: ' + tag.color" x-text="tag.tag_name"></span>
+                                </label>
+                            </template>
+                            <p x-show="tags.length === 0" class="text-sm text-gray-500">No tags available.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <button type="submit" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700">
+                            Search
+                        </button>
+                        <a href="{{ route('search') }}" class="text-sm text-gray-400 hover:text-gray-300">
+                            Clear
+                        </a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Search Results -->
+            @if(request()->hasAny(['q', 'tag_ids', 'project_id']))
+                <div class="bg-gray-800 border border-gray-700 overflow-hidden shadow-sm sm:rounded-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-100 mb-4">
+                        Search Results
+                        <span class="text-sm font-normal text-gray-500">({{ $tasks->count() }} found)</span>
+                    </h3>
+                    <x-task-list :tasks="$tasks" />
+                </div>
+            @endif
+        </div>
+    </div>
+
+    @push('scripts')
+    <script>
+        function searchFilter(projects, tags) {
+            return {
+                projects: projects,
+                tags: tags,
+                searchInput: @js(request('q', '')),
+                queryText: @js(request('q', '')),
+                selectedProjectId: @js(request('project_id', 'none')),
+                selectedTagIds: @js(request('tag_ids', [])),
+
+                // Autocomplete state
+                showAutocomplete: false,
+                autocompleteType: null, // 'project' or 'tag'
+                autocompleteIndex: 0,
+                autocompleteQuery: '',
+
+                init() {
+                    // Initialize search input from URL parameters
+                    this.rebuildSearchInput();
+                },
+
+                get filteredProjects() {
+                    if (!this.autocompleteQuery) return this.projects;
+                    const query = this.autocompleteQuery.toLowerCase();
+                    return this.projects.filter(p =>
+                        p.name.toLowerCase().includes(query)
+                    );
+                },
+
+                get filteredTags() {
+                    if (!this.autocompleteQuery) return this.tags;
+                    const query = this.autocompleteQuery.toLowerCase();
+                    return this.tags.filter(t =>
+                        t.tag_name.toLowerCase().includes(query)
+                    );
+                },
+
+                handleInput(event) {
+                    const input = this.searchInput;
+                    const cursorPos = event.target.selectionStart;
+
+                    // Find the word at cursor position
+                    const beforeCursor = input.substring(0, cursorPos);
+                    const afterCursor = input.substring(cursorPos);
+
+                    // Check if we're typing a project (#) or tag (@)
+                    const projectMatch = beforeCursor.match(/#(\w*)$/);
+                    const tagMatch = beforeCursor.match(/@(\w*)$/);
+
+                    if (projectMatch) {
+                        this.autocompleteType = 'project';
+                        this.autocompleteQuery = projectMatch[1];
+                        this.autocompleteIndex = 0;
+                        this.showAutocomplete = true;
+                    } else if (tagMatch) {
+                        this.autocompleteType = 'tag';
+                        this.autocompleteQuery = tagMatch[1];
+                        this.autocompleteIndex = 0;
+                        this.showAutocomplete = true;
+                    } else {
+                        this.showAutocomplete = false;
+                    }
+                },
+
+                handleKeydown(event) {
+                    if (!this.showAutocomplete) return;
+
+                    const maxIndex = this.autocompleteType === 'project'
+                        ? this.filteredProjects.length  // +1 for inbox option
+                        : this.filteredTags.length - 1;
+
+                    if (event.key === 'ArrowDown') {
+                        event.preventDefault();
+                        this.autocompleteIndex = Math.min(this.autocompleteIndex + 1, maxIndex);
+                    } else if (event.key === 'ArrowUp') {
+                        event.preventDefault();
+                        this.autocompleteIndex = Math.max(this.autocompleteIndex - 1, 0);
+                    } else if (event.key === 'Enter' && this.showAutocomplete) {
+                        event.preventDefault();
+
+                        if (this.autocompleteType === 'project') {
+                            const selected = this.autocompleteIndex === 0
+                                ? 'inbox'
+                                : this.filteredProjects[this.autocompleteIndex - 1]?.name;
+                            if (selected) this.selectAutocomplete(selected);
+                        } else if (this.autocompleteType === 'tag') {
+                            const selected = this.filteredTags[this.autocompleteIndex]?.tag_name;
+                            if (selected) this.selectAutocomplete(selected);
+                        }
+                    } else if (event.key === 'Escape') {
+                        event.preventDefault();
+                        this.showAutocomplete = false;
+                    }
+                },
+
+                selectAutocomplete(name) {
+                    const input = this.searchInput;
+                    const inputEl = this.$refs.searchInput;
+                    const cursorPos = inputEl.selectionStart;
+                    const beforeCursor = input.substring(0, cursorPos);
+                    const afterCursor = input.substring(cursorPos);
+
+                    // Replace the incomplete word with the selected name
+                    let newBefore;
+                    if (this.autocompleteType === 'project') {
+                        const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        newBefore = beforeCursor.replace(/#\w*$/, '#' + slug + ' ');
+                    } else {
+                        const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        newBefore = beforeCursor.replace(/@\w*$/, '@' + slug + ' ');
+                    }
+
+                    this.searchInput = newBefore + afterCursor;
+                    this.showAutocomplete = false;
+
+                    // Parse and update filters
+                    this.parseSearchInput();
+
+                    // Refocus input
+                    this.$nextTick(() => {
+                        inputEl.focus();
+                        inputEl.setSelectionRange(newBefore.length, newBefore.length);
+                    });
+                },
+
+                hideAutocomplete() {
+                    // Delay to allow click events to fire
+                    setTimeout(() => {
+                        this.showAutocomplete = false;
+                    }, 200);
+                },
+
+                parseSearchInput() {
+                    let input = this.searchInput;
+                    let projectMatches = input.match(/#(\w+)/g) || [];
+                    let tagMatches = input.match(/@(\w+)/g) || [];
+
+                    // Extract plain text (remove # and @ syntax)
+                    let plainText = input
+                        .replace(/#\w+/g, '')
+                        .replace(/@\w+/g, '')
+                        .trim()
+                        .replace(/\s+/g, ' ');
+
+                    this.queryText = plainText;
+
+                    // Find project by name
+                    if (projectMatches.length > 0) {
+                        let projectName = projectMatches[0].substring(1).toLowerCase();
+                        if (projectName === 'inbox') {
+                            this.selectedProjectId = 'inbox';
+                        } else {
+                            let project = this.projects.find(p =>
+                                p.name.toLowerCase().replace(/[^a-z0-9]/g, '') === projectName.replace(/[^a-z0-9]/g, '')
+                            );
+                            this.selectedProjectId = project ? project.id : 'none';
+                        }
+                    } else {
+                        this.selectedProjectId = 'none';
+                    }
+
+                    // Find tags by name
+                    this.selectedTagIds = [];
+                    tagMatches.forEach(match => {
+                        let tagName = match.substring(1).toLowerCase();
+                        let tag = this.tags.find(t =>
+                            t.tag_name.toLowerCase().replace(/[^a-z0-9]/g, '') === tagName.replace(/[^a-z0-9]/g, '')
+                        );
+                        if (tag && !this.selectedTagIds.includes(tag.id)) {
+                            this.selectedTagIds.push(tag.id);
+                        }
+                    });
+                },
+
+                updateSearchFromFilters() {
+                    this.rebuildSearchInput();
+                },
+
+                toggleTag(tagId) {
+                    if (this.selectedTagIds.includes(tagId)) {
+                        this.selectedTagIds = this.selectedTagIds.filter(id => id !== tagId);
+                    } else {
+                        this.selectedTagIds.push(tagId);
+                    }
+                    this.rebuildSearchInput();
+                },
+
+                rebuildSearchInput() {
+                    let parts = [];
+
+                    // Add plain query text
+                    if (this.queryText) {
+                        parts.push(this.queryText);
+                    }
+
+                    // Add project syntax
+                    if (this.selectedProjectId && this.selectedProjectId !== 'none') {
+                        if (this.selectedProjectId === 'inbox') {
+                            parts.push('#inbox');
+                        } else {
+                            let project = this.projects.find(p => p.id == this.selectedProjectId);
+                            if (project) {
+                                let projectSlug = project.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                                parts.push('#' + projectSlug);
+                            }
+                        }
+                    }
+
+                    // Add tag syntax
+                    this.selectedTagIds.forEach(tagId => {
+                        let tag = this.tags.find(t => t.id == tagId);
+                        if (tag) {
+                            let tagSlug = tag.tag_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                            parts.push('@' + tagSlug);
+                        }
+                    });
+
+                    this.searchInput = parts.join(' ');
+                },
+
+                prepareSubmit(e) {
+                    // Make sure hidden fields are up to date before submitting
+                    this.parseSearchInput();
+                }
+            };
+        }
+    </script>
+    @endpush
+</x-app-layout>
