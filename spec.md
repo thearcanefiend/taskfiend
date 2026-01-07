@@ -5,7 +5,6 @@ This is the spec I fed to Claude to get the first draft of this software created
 
 Task Fiend is a to-do list software written in Laravel to run on a Debian variant of Linux. Because I'm only expecting two or three users, Sqlite is fine. Please use Alpine as the frontend.
 
-There's an open source project, DoneTick, which is very similar. The API endpoint to create tasks theoretically supports recurring, but it's broken. I offered a fix but never heard back.
 
 
 
