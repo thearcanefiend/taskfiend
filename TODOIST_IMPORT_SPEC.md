@@ -246,3 +246,71 @@ Once implemented, consider:
 - Progress persistence (resume interrupted imports)
 - Mapping file for custom project/tag name translations
 - Support for other users' Todoist collaborator mapping
+
+---
+
+## Implementation Status: COMPLETED ✅
+
+### Usage Instructions
+
+1. **Prerequisites**:
+   - Set `TODOIST_KEY` in your `.env` file with your Todoist API token
+   - Create a Task Fiend user and generate an API key:
+     ```bash
+     php artisan user:create your@email.com "Your Name" password123
+     php artisan apikey:create your@email.com
+     ```
+
+2. **Run the import**:
+   ```bash
+   php artisan todoist:import --api-key=tfk_xxxxx
+   ```
+
+3. **Monitor progress**:
+   - Real-time progress is shown in the console
+   - Detailed logs are written to Laravel log files
+   - A summary is displayed at the end
+
+### Implementation Notes
+
+**What's Implemented**:
+- ✅ Full project import with duplicate detection
+- ✅ Tag/label import (reuses existing tags by name)
+- ✅ Task import with support for:
+  - Subtasks using `parent_id` field
+  - Due dates (date and time)
+  - Recurrence patterns (auto-converted using DateParser)
+  - Tag associations
+  - Automatic assignment to importing user
+- ✅ Comment import with inline attachments
+- ✅ Two-pass task import (parents first, then subtasks)
+- ✅ Comprehensive error handling and logging
+- ✅ Import statistics and summary
+
+**Data Mapping Details**:
+- Projects: Name-based duplicate detection (per user)
+- Tasks: Name + project-based duplicate detection
+- Tags: Global, reused if exists
+- Subtasks: Imported in second pass after parents
+- Recurrence: Converted via DateParser, logged if unparseable
+- Attachments: Comment attachments only (Todoist API v2 doesn't expose task attachments separately)
+
+**Important Behaviors**:
+- All imported items are assigned to the user identified by the API key
+- Duplicate items are skipped (not overwritten)
+- Errors are logged but don't abort the import
+- Subtasks with missing parents are skipped
+- Tasks with unknown projects are skipped
+- Recurrence patterns that can't be parsed are imported without recurrence
+
+### Known Limitations
+
+1. **Task Attachments**: Todoist API v2 doesn't expose task attachments via a separate endpoint. Attachments are imported via comments only.
+
+2. **Subprojects**: Task Fiend doesn't support nested projects. All Todoist projects are imported as top-level projects.
+
+3. **Sections**: Todoist sections are not mapped (as specified).
+
+4. **Collaborators**: All tasks are assigned to the importing user only.
+
+5. **Recurrence Patterns**: Some complex Todoist recurrence patterns may not convert perfectly to Task Fiend format. These are logged as warnings.

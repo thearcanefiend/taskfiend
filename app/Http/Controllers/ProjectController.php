@@ -81,7 +81,29 @@ class ProjectController extends Controller
             })
             ->where('status', '!=', 'archived')
             ->where('status', '!=', 'done')
-            ->with(['creator', 'tags', 'assignees', 'attachments', 'comments'])
+            ->whereNull('parent_id') // Only get root-level tasks
+            ->with([
+                'creator',
+                'tags',
+                'assignees',
+                'attachments',
+                'comments',
+                'children' => function ($query) {
+                    $query->where('status', '!=', 'archived')
+                          ->where('status', '!=', 'done')
+                          ->with([
+                              'tags',
+                              'assignees',
+                              'attachments',
+                              'creator',
+                              'children' => function ($q) {
+                                  $q->where('status', '!=', 'archived')
+                                    ->where('status', '!=', 'done')
+                                    ->with(['tags', 'assignees', 'attachments', 'creator']);
+                              }
+                          ]);
+                }
+            ])
             ->orderBy('date')
             ->orderBy('time')
             ->get();

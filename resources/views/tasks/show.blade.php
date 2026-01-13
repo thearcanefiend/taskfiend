@@ -494,7 +494,12 @@
                             </div>
                             <p class="mt-1 text-sm text-gray-300">{{ $comment->comment }}</p>
                             @if($comment->file_path)
-                                <p class="mt-1 text-xs text-blue-400">Attachment: {{ $comment->original_filename }}</p>
+                                <p class="mt-1 text-xs">
+                                    <a href="{{ route('comments.download', [$task, $comment]) }}" class="text-blue-400 hover:text-blue-300 hover:underline">
+                                        📎 {{ $comment->original_filename }}
+                                    </a>
+                                    <span class="text-gray-500 ml-2">({{ number_format($comment->file_size / 1024, 1) }} KB)</span>
+                                </p>
                             @endif
                         </div>
                     @empty

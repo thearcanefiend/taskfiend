@@ -29,12 +29,9 @@
                 }
             }
 
-            $indentClass = '';
-            if ($depth > 0) {
-                $indentClass = 'ml-' . ($depth * 6); // 24px per level
-            }
+            $marginLeft = $depth * 24; // 24px per level
         @endphp
-        <div class="bg-gray-800 p-4 rounded-lg shadow hover:shadow-md transition border border-gray-700 {{ $indentClass }}">
+        <div class="bg-gray-800 p-4 rounded-lg shadow hover:shadow-md transition border border-gray-700" style="margin-left: {{ $marginLeft }}px;">
             <div class="flex items-start gap-4">
                 <!-- Complete Circle -->
                 <form method="POST" action="{{ route('tasks.update', $task) }}" onclick="event.stopPropagation()">

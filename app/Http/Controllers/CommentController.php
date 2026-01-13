@@ -83,4 +83,27 @@ class CommentController extends Controller
         return redirect()->route('tasks.show', $task)
             ->with('success', 'Comment deleted successfully.');
     }
+
+    public function download(Task $task, Comment $comment)
+    {
+        if ($comment->task_id !== $task->id) {
+            abort(404);
+        }
+
+        $isCreator = $task->creator_id === Auth::id();
+        $isAssignee = $task->assignees->contains('id', Auth::id());
+
+        if (!$isCreator && !$isAssignee) {
+            abort(403, 'You do not have access to this comment attachment.');
+        }
+
+        if (!$comment->file_path || !Storage::disk('private')->exists($comment->file_path)) {
+            abort(404, 'Attachment not found.');
+        }
+
+        return Storage::disk('private')->download(
+            $comment->file_path,
+            $comment->original_filename
+        );
+    }
 }
