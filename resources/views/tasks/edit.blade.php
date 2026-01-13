@@ -52,6 +52,7 @@
                                    class="w-full rounded-md bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-500 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                    value="{{ old('recurrence_pattern', $task->recurrence_pattern) }}"
                                    placeholder="e.g., daily, every Monday, weekdays">
+                            <p class="mt-1 text-xs text-gray-400">Supported: daily, every other day, weekdays, weekends, every Monday/Tuesday/etc., every other Wednesday, every 2 weeks, every 15th, every first Monday, yearly</p>
                             @error('recurrence_pattern')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
 
@@ -78,6 +79,26 @@
                                 @endforeach
                             </select>
                             @error('project_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                        </div>
+
+                        <!-- Parent Task -->
+                        <div class="mb-4">
+                            <label for="parent_id" class="block text-sm font-medium text-gray-300 mb-2">
+                                Parent Task (Optional - create as subtask)
+                            </label>
+                            <select name="parent_id" id="parent_id"
+                                    class="w-full rounded-md bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-500 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">None (Top-level task)</option>
+                                @foreach($availableParents as $parentOption)
+                                    <option value="{{ $parentOption->id }}" {{ old('parent_id', $task->parent_id) == $parentOption->id ? 'selected' : '' }}>
+                                        {{ str_repeat('→ ', $parentOption->getDepth()) }}{{ $parentOption->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <p class="mt-1 text-xs text-gray-500">
+                                Select a parent task to make this a subtask. Subtasks inherit permissions from their parent.
+                            </p>
+                            @error('parent_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
 
                         <div class="mb-4">

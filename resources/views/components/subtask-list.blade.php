@@ -1,0 +1,88 @@
+@props(['tasks', 'parent'])
+
+<div class="space-y-2">
+    @foreach($tasks as $task)
+        <div class="bg-gray-700 border border-gray-600 p-3 rounded-lg hover:bg-gray-650 transition">
+            <div class="flex items-start gap-3">
+                <!-- Status Indicator -->
+                <div class="flex-shrink-0 mt-1">
+                    @if($task->status === 'done')
+                        <span class="inline-block w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                            <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </span>
+                    @elseif($task->status === 'archived')
+                        <span class="inline-block w-5 h-5 rounded-full bg-gray-500 flex items-center justify-center">
+                            <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path>
+                            </svg>
+                        </span>
+                    @else
+                        <form method="POST" action="{{ route('tasks.update', $task) }}" class="inline">
+                            @csrf
+                            @method('PUT')
+                            <input type="hidden" name="status" value="done">
+                            <input type="hidden" name="name" value="{{ $task->name }}">
+                            <input type="hidden" name="description" value="{{ $task->description }}">
+                            <input type="hidden" name="date" value="{{ $task->date }}">
+                            <input type="hidden" name="time" value="{{ $task->time }}">
+                            <input type="hidden" name="project_id" value="{{ $task->project_id }}">
+                            <input type="hidden" name="parent_id" value="{{ $task->parent_id }}">
+                            @foreach($task->tags as $tag)
+                                <input type="hidden" name="tag_ids[]" value="{{ $tag->id }}">
+                            @endforeach
+                            @foreach($task->assignees as $assignee)
+                                <input type="hidden" name="assignee_ids[]" value="{{ $assignee->id }}">
+                            @endforeach
+                            <input type="hidden" name="quick_complete" value="1">
+                            <button type="submit"
+                                    class="w-5 h-5 rounded-full border-2 border-gray-400 hover:border-green-400 hover:bg-green-400 hover:bg-opacity-20 transition"
+                                    title="Mark as done">
+                            </button>
+                        </form>
+                    @endif
+                </div>
+
+                <!-- Task Info -->
+                <div class="flex-1 min-w-0">
+                    <a href="{{ route('tasks.show', $task) }}" class="block hover:text-gray-100 transition">
+                        <h4 class="font-medium text-gray-200 truncate">{{ $task->name }}</h4>
+                    </a>
+
+                    @if($task->description)
+                        <p class="text-xs text-gray-400 mt-1 line-clamp-2">{{ $task->description }}</p>
+                    @endif
+
+                    <div class="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                        @if($task->date)
+                            <span>{{ \Carbon\Carbon::parse($task->date)->format('M j') }}</span>
+                        @endif
+                        @if($task->tags->count() > 0)
+                            <div class="flex gap-1">
+                                @foreach($task->tags as $tag)
+                                    <span class="inline-block px-1 py-0.5 text-xs rounded"
+                                          style="background-color: {{ $tag->color }}22; color: {{ $tag->color }}">
+                                        {{ $tag->tag_name }}
+                                    </span>
+                                @endforeach
+                            </div>
+                        @endif
+                        @if($task->children->count() > 0)
+                            <span class="text-gray-400">
+                                {{ $task->incompleteChildren()->count() }}/{{ $task->children->count() }} subtasks
+                            </span>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nested Subtasks (recursive) -->
+            @if($task->children->count() > 0)
+                <div class="ml-8 mt-3 space-y-2">
+                    <x-subtask-list :tasks="$task->children" :parent="$task" />
+                </div>
+            @endif
+        </div>
+    @endforeach
+</div>

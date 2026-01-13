@@ -18,7 +18,7 @@ test.describe('Project Authorization & Privacy', () => {
     // User 1 creates a project
     await login(page, testUsers.user1.email);
     await page.goto('/projects/create');
-    await page.fill('input[name="name"]', 'User 1 Private Project');
+    await page.fill('#name', 'User 1 Private Project');
     await page.fill('textarea[name="description"]', 'This project should only be visible to User 1');
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/projects\/\d+/);
@@ -27,7 +27,7 @@ test.describe('Project Authorization & Privacy', () => {
     // User 2 creates a project
     await login(page, testUsers.user2.email);
     await page.goto('/projects/create');
-    await page.fill('input[name="name"]', 'User 2 Private Project');
+    await page.fill('#name', 'User 2 Private Project');
     await page.fill('textarea[name="description"]', 'This project should only be visible to User 2');
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/projects\/\d+/);
@@ -49,11 +49,11 @@ test.describe('Project Authorization & Privacy', () => {
     // User 1 creates a project and assigns it to User 2
     await login(page, testUsers.user1.email);
     await page.goto('/projects/create');
-    await page.fill('input[name="name"]', 'Shared Project for User 2');
+    await page.fill('#name', 'Shared Project for User 2');
     await page.fill('textarea[name="description"]', 'User 2 should see this project');
 
     // Assign to User 2
-    await page.selectOption('select[name="assignees[]"]', { label: testUsers.user2.name });
+    await page.check(`label:has-text("${testUsers.user2.name}") input[name="assignee_ids[]"]`);
 
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/projects\/\d+/);
@@ -73,7 +73,7 @@ test.describe('Project Authorization & Privacy', () => {
     // User 1 creates a project
     await login(page, testUsers.user1.email);
     await page.goto('/projects/create');
-    await page.fill('input[name="name"]', 'User 1 Secret Project');
+    await page.fill('#name', 'User 1 Secret Project');
     await page.fill('textarea[name="description"]', 'User 2 should not see this project');
     await page.click('button[type="submit"]');
 
@@ -100,7 +100,7 @@ test.describe('Project Authorization & Privacy', () => {
     // User 1 creates a project
     await login(page, testUsers.user1.email);
     await page.goto('/projects/create');
-    await page.fill('input[name="name"]', 'User 1 Project to Edit');
+    await page.fill('#name', 'User 1 Project to Edit');
     await page.fill('textarea[name="description"]', 'Original description');
     await page.click('button[type="submit"]');
 
@@ -126,7 +126,7 @@ test.describe('Project Authorization & Privacy', () => {
     // User 1 creates a project
     await login(page, testUsers.user1.email);
     await page.goto('/projects/create');
-    await page.fill('input[name="name"]', 'Project with Assignees');
+    await page.fill('#name', 'Project with Assignees');
     await page.fill('textarea[name="description"]', 'Testing assignee management');
     await page.click('button[type="submit"]');
 
@@ -134,8 +134,7 @@ test.describe('Project Authorization & Privacy', () => {
 
     // Edit to add User 2 as assignee
     await page.click('a:has-text("Edit")');
-    await page.waitForSelector('select[name="assignees[]"]');
-    await page.selectOption('select[name="assignees[]"]', { label: testUsers.user2.name });
+    await page.check(`label:has-text("${testUsers.user2.name}") input[name="assignee_ids[]"]`);
     await page.click('button[type="submit"]');
 
     // Verify assignee was added
@@ -144,8 +143,7 @@ test.describe('Project Authorization & Privacy', () => {
 
     // Remove assignee
     await page.click('a:has-text("Edit")');
-    await page.waitForSelector('select[name="assignees[]"]');
-    await page.selectOption('select[name="assignees[]"]', []);
+    await page.uncheck(`label:has-text("${testUsers.user2.name}") input[name="assignee_ids[]"]`);
     await page.click('button[type="submit"]');
   });
 
@@ -153,9 +151,9 @@ test.describe('Project Authorization & Privacy', () => {
     // User 1 creates and assigns project to User 3
     await login(page, testUsers.user1.email);
     await page.goto('/projects/create');
-    await page.fill('input[name="name"]', 'Assigned to User 3 Project');
+    await page.fill('#name', 'Assigned to User 3 Project');
     await page.fill('textarea[name="description"]', 'User 3 is assigned to this project');
-    await page.selectOption('select[name="assignees[]"]', { label: testUsers.user3.name });
+    await page.check(`label:has-text("${testUsers.user3.name}") input[name="assignee_ids[]"]`);
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/projects\/\d+/);
     await logout(page);
@@ -174,7 +172,7 @@ test.describe('Project Authorization & Privacy', () => {
     // User 1 creates a project
     await login(page, testUsers.user1.email);
     await page.goto('/projects/create');
-    await page.fill('input[name="name"]', 'Project with Tasks');
+    await page.fill('#name', 'Project with Tasks');
     await page.fill('textarea[name="description"]', 'Testing task visibility in projects');
     await page.click('button[type="submit"]');
 
@@ -184,7 +182,7 @@ test.describe('Project Authorization & Privacy', () => {
 
     // Create a task in this project
     await page.goto('/tasks/create');
-    await page.fill('input[name="name"]', 'Task in Private Project');
+    await page.fill('#name', 'Task in Private Project');
     await page.selectOption('select[name="project_id"]', projectId);
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/tasks\/\d+/);
@@ -200,7 +198,7 @@ test.describe('Project Authorization & Privacy', () => {
     // User 1 creates a project
     await login(page, testUsers.user1.email);
     await page.goto('/projects/create');
-    await page.fill('input[name="name"]', 'User 1 Exclusive Project');
+    await page.fill('#name', 'User 1 Exclusive Project');
     await page.click('button[type="submit"]');
 
     await page.waitForURL(/\/projects\/(\d+)/);
@@ -222,7 +220,7 @@ test.describe('Project Authorization & Privacy', () => {
     await login(page, testUsers.user1.email);
     await page.goto('/projects/create');
     const uniqueName = `Unique Project ${Date.now()}`;
-    await page.fill('input[name="name"]', uniqueName);
+    await page.fill('#name', uniqueName);
     await page.fill('textarea[name="description"]', 'Should not appear in User 2 search');
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/projects\/\d+/);
@@ -231,7 +229,7 @@ test.describe('Project Authorization & Privacy', () => {
     // User 2 tries to search for the project
     await login(page, testUsers.user2.email);
     await page.goto('/search');
-    await page.fill('input[name="query"]', uniqueName);
+    await page.fill('#search', uniqueName);
     await page.click('button[type="submit"]');
 
     // Project should not appear in results
@@ -242,8 +240,8 @@ test.describe('Project Authorization & Privacy', () => {
     // User 1 creates project and assigns to User 2
     await login(page, testUsers.user1.email);
     await page.goto('/projects/create');
-    await page.fill('input[name="name"]', 'Temporary Access Project');
-    await page.selectOption('select[name="assignees[]"]', { label: testUsers.user2.name });
+    await page.fill('#name', 'Temporary Access Project');
+    await page.check(`label:has-text("${testUsers.user2.name}") input[name="assignee_ids[]"]`);
     await page.click('button[type="submit"]');
 
     await page.waitForURL(/\/projects\/(\d+)/);
@@ -260,7 +258,7 @@ test.describe('Project Authorization & Privacy', () => {
     // User 1 removes User 2 from the project
     await login(page, testUsers.user1.email);
     await page.goto(`/projects/${projectId}/edit`);
-    await page.selectOption('select[name="assignees[]"]', []);
+    await page.uncheck(`label:has-text("${testUsers.user2.name}") input[name="assignee_ids[]"]`);
     await page.click('button[type="submit"]');
     await logout(page);
 

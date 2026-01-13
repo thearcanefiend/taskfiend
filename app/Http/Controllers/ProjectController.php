@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -13,7 +14,7 @@ class ProjectController extends Controller
         $query = Project::query()
             ->where(function ($q) {
                 $q->where('user_id', Auth::id())
-                  ->orWhereHas('tasks.assignees', function ($query) {
+                  ->orWhereHas('assignees', function ($query) {
                       $query->where('users.id', Auth::id());
                   });
             });
@@ -34,7 +35,11 @@ class ProjectController extends Controller
 
     public function create()
     {
-        return view('projects.create');
+        $users = User::where('email_enabled_at', null)
+            ->orderBy('name')
+            ->get();
+
+        return view('projects.create', compact('users'));
     }
 
     public function store(Request $request)
@@ -42,6 +47,8 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'assignee_ids' => 'nullable|array',
+            'assignee_ids.*' => 'exists:users,id',
         ]);
 
         $project = Project::create([
@@ -50,6 +57,10 @@ class ProjectController extends Controller
             'user_id' => Auth::id(),
             'status' => 'incomplete',
         ]);
+
+        // Sync assignees (include creator if no assignees specified)
+        $assigneeIds = $validated['assignee_ids'] ?? [Auth::id()];
+        $project->assignees()->sync($assigneeIds);
 
         $this->logChange($project, 'created project');
 
@@ -75,7 +86,7 @@ class ProjectController extends Controller
             ->orderBy('time')
             ->get();
 
-        $project->load(['creator', 'changeLogs.user']);
+        $project->load(['creator', 'assignees', 'changeLogs.user']);
 
         return view('projects.show', compact('project', 'tasks'));
     }
@@ -90,7 +101,11 @@ class ProjectController extends Controller
             abort(403, 'Only the project creator can edit it.');
         }
 
-        return view('projects.edit', compact('project'));
+        $users = User::where('email_enabled_at', null)
+            ->orderBy('name')
+            ->get();
+
+        return view('projects.edit', compact('project', 'users'));
     }
 
     public function update(Request $request, Project $project)
@@ -107,6 +122,8 @@ class ProjectController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'status' => 'in:incomplete,done,archived',
+            'assignee_ids' => 'nullable|array',
+            'assignee_ids.*' => 'exists:users,id',
         ]);
 
         $changes = [];
@@ -121,6 +138,11 @@ class ProjectController extends Controller
 
         foreach ($changes as $field => $change) {
             $this->logChange($project, "changed {$field} from {$change['old']} to {$change['new']}");
+        }
+
+        // Sync assignees if provided
+        if (isset($validated['assignee_ids'])) {
+            $project->assignees()->sync($validated['assignee_ids']);
         }
 
         return redirect()->route('projects.show', $project)
@@ -139,13 +161,14 @@ class ProjectController extends Controller
     protected function authorizeProjectAccess(Project $project)
     {
         $isCreator = $project->user_id === Auth::id();
+        $isAssignee = $project->assignees()->where('users.id', Auth::id())->exists();
         $hasTaskInProject = $project->tasks()
             ->whereHas('assignees', function ($query) {
                 $query->where('users.id', Auth::id());
             })
             ->exists();
 
-        if (!$isCreator && !$hasTaskInProject) {
+        if (!$isCreator && !$isAssignee && !$hasTaskInProject) {
             abort(403, 'You do not have access to this project.');
         }
     }

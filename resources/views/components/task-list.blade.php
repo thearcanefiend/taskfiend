@@ -1,4 +1,4 @@
-@props(['tasks'])
+@props(['tasks', 'depth' => 0])
 
 <div class="space-y-2">
     @forelse($tasks as $task)
@@ -28,8 +28,13 @@
                     }
                 }
             }
+
+            $indentClass = '';
+            if ($depth > 0) {
+                $indentClass = 'ml-' . ($depth * 6); // 24px per level
+            }
         @endphp
-        <div class="bg-gray-800 p-4 rounded-lg shadow hover:shadow-md transition border border-gray-700">
+        <div class="bg-gray-800 p-4 rounded-lg shadow hover:shadow-md transition border border-gray-700 {{ $indentClass }}">
             <div class="flex items-start gap-4">
                 <!-- Complete Circle -->
                 <form method="POST" action="{{ route('tasks.update', $task) }}" onclick="event.stopPropagation()">
@@ -37,16 +42,66 @@
                     @method('PUT')
                     <input type="hidden" name="status" value="done">
                     <input type="hidden" name="name" value="{{ $task->name }}">
+                    <input type="hidden" name="description" value="{{ $task->description }}">
+                    <input type="hidden" name="date" value="{{ $task->date }}">
+                    <input type="hidden" name="time" value="{{ $task->time }}">
+                    <input type="hidden" name="project_id" value="{{ $task->project_id }}">
+                    <input type="hidden" name="parent_id" value="{{ $task->parent_id }}">
+                    <input type="hidden" name="recurrence_pattern" value="{{ $task->recurrence_pattern }}">
+                    @foreach($task->tags as $tag)
+                        <input type="hidden" name="tag_ids[]" value="{{ $tag->id }}">
+                    @endforeach
+                    @foreach($task->assignees as $assignee)
+                        <input type="hidden" name="assignee_ids[]" value="{{ $assignee->id }}">
+                    @endforeach
                     <input type="hidden" name="quick_complete" value="1">
+                    @php
+                        $buttonClass = 'mt-1 w-6 h-6 rounded-full border-2 transition flex-shrink-0';
+                        $titleText = 'Mark as done';
+
+                        if ($task->recurrence_pattern && $task->children->count() > 0) {
+                            $buttonClass .= ' border-purple-400 hover:border-purple-500';
+                            $titleText = 'Complete & create next with ' . $task->children->count() . ' subtask(s) (' . $task->recurrence_pattern . ')';
+                        } elseif ($task->recurrence_pattern) {
+                            $buttonClass .= ' border-purple-400 hover:border-purple-500';
+                            $titleText = 'Complete & create next (' . $task->recurrence_pattern . ')';
+                        } elseif ($task->children->count() > 0) {
+                            $buttonClass .= ' border-blue-400 hover:border-blue-500';
+                            $titleText = 'Complete with ' . $task->children->count() . ' subtask(s)';
+                        } else {
+                            $buttonClass .= ' border-gray-400 hover:border-green-400';
+                        }
+
+                        $buttonClass .= ' hover:bg-green-400 hover:bg-opacity-20';
+                    @endphp
                     <button type="submit"
-                            class="mt-1 w-6 h-6 rounded-full border-2 border-gray-400 hover:border-green-400 hover:bg-green-400 hover:bg-opacity-20 transition flex-shrink-0"
-                            title="Mark as done">
+                            class="{{ $buttonClass }}"
+                            title="{{ $titleText }}">
                     </button>
                 </form>
 
                 <!-- Task Content -->
                 <div class="flex-1 cursor-pointer" onclick="window.location='{{ route('tasks.show', $task) }}'">
-                    <h3 class="font-semibold text-gray-100">{{ $task->name }}</h3>
+                    <!-- Show parent context if exists -->
+                    @if($task->parent)
+                        <div class="text-xs text-gray-500 mb-1">
+                            <span class="text-gray-600">↳ Subtask of:</span>
+                            <a href="{{ route('tasks.show', $task->parent) }}"
+                               class="text-blue-400 hover:underline"
+                               onclick="event.stopPropagation()">
+                                {{ $task->parent->name }}
+                            </a>
+                        </div>
+                    @endif
+
+                    <h3 class="font-semibold text-gray-100">
+                        {{ $task->name }}
+                        @if($task->children->count() > 0)
+                            <span class="text-xs text-gray-500 font-normal">
+                                ({{ $task->incompleteChildren()->count() }}/{{ $task->children->count() }} subtasks)
+                            </span>
+                        @endif
+                    </h3>
                     @if($task->description)
                         <p class="text-sm text-gray-400 mt-1">{{ Str::limit($task->description, 100) }}</p>
                     @endif
@@ -94,6 +149,11 @@
                 @endif
             </div>
         </div>
+
+        <!-- Recursively render subtasks -->
+        @if($task->children->count() > 0)
+            <x-task-list :tasks="$task->children" :depth="$depth + 1" />
+        @endif
     @empty
         <div class="bg-gray-800 p-8 rounded-lg text-center text-gray-400 border border-gray-700">
             No tasks found.

@@ -19,11 +19,13 @@ class DateParser
             'daily' => '/\b(daily|every day)\b/i',
             'weekdays' => '/\bweekdays\b/i',
             'weekends' => '/\bweekends\b/i',
+            'every_other_day_literal' => '/\bevery other day\b/i',
+            'every_other_weekday' => '/\bevery other (monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i',
             'weekly' => '/\bevery (\d+) weeks?\b/i',
             'day_of_week' => '/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?\b/i',
             'multi_days' => '/\b(mon|tue|wed|thu|fri|sat|sun)(,(mon|tue|wed|thu|fri|sat|sun))+\b/i',
             'monthly_ordinal' => '/\bevery (first|second|third|fourth|last) (monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i',
-            'monthly_day' => '/\bevery (\d{1,2})(st|nd|rd|th)?\b/i',
+            'monthly_day' => '/\bevery (\d{1,2})(st|nd|rd|th)?(?!\s+(days?|weeks?|months?|years?))\b/i',
             'yearly' => '/\b(yearly|every year)\b/i',
             'date_month_day' => '/\b(january|february|march|april|may|june|july|august|september|october|november|december) (\d{1,2})\b/i',
             'date_slash' => '/\b(\d{1,2})\/(\d{1,2})\b/',
@@ -42,6 +44,15 @@ class DateParser
             $result['recurrence_pattern'] = 'weekends';
             $result['date'] = $this->getNextWeekend()->format('Y-m-d');
             $result['name'] = trim(preg_replace($patterns['weekends'], '', $input));
+        } elseif (preg_match($patterns['every_other_day_literal'], $input, $matches)) {
+            $result['recurrence_pattern'] = 'every other day';
+            $result['date'] = Carbon::today()->format('Y-m-d');
+            $result['name'] = trim(preg_replace($patterns['every_other_day_literal'], '', $input));
+        } elseif (preg_match($patterns['every_other_weekday'], $input, $matches)) {
+            $dayName = ucfirst(strtolower($matches[1]));
+            $result['recurrence_pattern'] = "every other {$dayName}";
+            $result['date'] = $this->getNextDayOfWeek($dayName)->format('Y-m-d');
+            $result['name'] = trim(preg_replace($patterns['every_other_weekday'], '', $input));
         } elseif (preg_match($patterns['weekly'], $input, $matches)) {
             $weeks = (int) $matches[1];
             $result['recurrence_pattern'] = "every {$weeks} weeks";
@@ -116,9 +127,9 @@ class DateParser
         return $date->next(Carbon::SATURDAY);
     }
 
-    protected function getNextDayOfWeek(string $dayName): Carbon
+    protected function getNextDayOfWeek(string $dayName, Carbon $currentDate = null): Carbon
     {
-        $date = Carbon::today();
+        $date = $currentDate ? $currentDate->copy() : Carbon::today();
         $targetDay = constant('Carbon\Carbon::' . strtoupper($dayName));
 
         if ($date->dayOfWeek === $targetDay) {
@@ -128,7 +139,7 @@ class DateParser
         return $date->next($targetDay);
     }
 
-    protected function getNextMultiDay(string $days): Carbon
+    protected function getNextMultiDay(string $days, Carbon $currentDate = null): Carbon
     {
         $dayMap = [
             'sun' => Carbon::SUNDAY,
@@ -146,7 +157,7 @@ class DateParser
         }, $dayParts);
         $targetDays = array_filter($targetDays);
 
-        $date = Carbon::today();
+        $date = $currentDate ? $currentDate->copy()->addDay() : Carbon::today();
         $found = false;
 
         for ($i = 0; $i < 7; $i++) {
@@ -160,13 +171,15 @@ class DateParser
         return $date;
     }
 
-    protected function getNextOrdinalDay(string $ordinal, string $dayName): Carbon
+    protected function getNextOrdinalDay(string $ordinal, string $dayName, Carbon $currentDate = null): Carbon
     {
-        $date = Carbon::today()->startOfMonth();
+        $referenceDate = $currentDate ? $currentDate->copy() : Carbon::today();
+        $date = $referenceDate->copy()->startOfMonth();
         $targetDay = constant('Carbon\Carbon::' . strtoupper($dayName));
 
         $occurrences = [];
-        while ($date->month === Carbon::today()->month) {
+        $currentMonth = $date->month;
+        while ($date->month === $currentMonth) {
             if ($date->dayOfWeek === $targetDay) {
                 $occurrences[] = $date->copy();
             }
@@ -182,20 +195,21 @@ class DateParser
         ];
 
         $index = $ordinalMap[strtolower($ordinal)] ?? 0;
-        $targetDate = $occurrences[$index] ?? Carbon::today();
+        $targetDate = $occurrences[$index] ?? $referenceDate;
 
-        if ($targetDate->isPast()) {
-            return $this->getNextOrdinalDay($ordinal, $dayName);
+        // If target date is on or before current date, get next month's occurrence
+        if ($targetDate <= $referenceDate) {
+            return $this->getNextOrdinalDay($ordinal, $dayName, $referenceDate->copy()->addMonth()->startOfMonth());
         }
 
         return $targetDate;
     }
 
-    protected function getNextMonthDay(int $day): Carbon
+    protected function getNextMonthDay(int $day, Carbon $currentDate = null): Carbon
     {
-        $date = Carbon::today();
+        $date = $currentDate ? $currentDate->copy() : Carbon::today();
 
-        if ($date->day > $day) {
+        if ($date->day >= $day) {
             $date->addMonth();
         }
 
@@ -236,11 +250,18 @@ class DateParser
             return null;
         }
 
-        if ($recurrencePattern === 'daily') {
+        // Normalize pattern to lowercase for case-insensitive matching
+        $normalizedPattern = strtolower($recurrencePattern);
+
+        if ($normalizedPattern === 'daily') {
             return $currentDate->copy()->addDay();
         }
 
-        if ($recurrencePattern === 'weekdays') {
+        if ($normalizedPattern === 'every other day') {
+            return $currentDate->copy()->addDays(2);
+        }
+
+        if ($normalizedPattern === 'weekdays') {
             $next = $currentDate->copy()->addDay();
             while ($next->isWeekend()) {
                 $next->addDay();
@@ -248,7 +269,7 @@ class DateParser
             return $next;
         }
 
-        if ($recurrencePattern === 'weekends') {
+        if ($normalizedPattern === 'weekends') {
             $next = $currentDate->copy()->addDay();
             while (!$next->isWeekend()) {
                 $next->addDay();
@@ -256,32 +277,95 @@ class DateParser
             return $next;
         }
 
-        if (preg_match('/^every (\d+) weeks?$/', $recurrencePattern, $matches)) {
+        if (preg_match('/^every (\d+) weeks?$/', $normalizedPattern, $matches)) {
             $weeks = (int) $matches[1];
             return $currentDate->copy()->addWeeks($weeks);
         }
 
-        if (preg_match('/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$/i', $recurrencePattern)) {
-            return $this->getNextDayOfWeek($recurrencePattern);
+        if (preg_match('/^every other (monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/i', $normalizedPattern, $matches)) {
+            // "every other Wednesday" means 2 weeks from current date
+            return $currentDate->copy()->addWeeks(2);
         }
 
-        if (preg_match('/^(mon|tue|wed|thu|fri|sat|sun)(,(mon|tue|wed|thu|fri|sat|sun))+$/i', $recurrencePattern)) {
-            return $this->getNextMultiDay($recurrencePattern);
+        if (preg_match('/^(monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/i', $normalizedPattern)) {
+            return $this->getNextDayOfWeek($normalizedPattern, $currentDate);
         }
 
-        if (preg_match('/^every (first|second|third|fourth|last) (monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/i', $recurrencePattern, $matches)) {
-            return $this->getNextOrdinalDay($matches[1], $matches[2]);
+        if (preg_match('/^(mon|tue|wed|thu|fri|sat|sun)(,(mon|tue|wed|thu|fri|sat|sun))+$/i', $normalizedPattern)) {
+            return $this->getNextMultiDay($normalizedPattern, $currentDate);
         }
 
-        if (preg_match('/^every (\d{1,2})$/', $recurrencePattern, $matches)) {
+        if (preg_match('/^every (first|second|third|fourth|last) (monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/i', $normalizedPattern, $matches)) {
+            return $this->getNextOrdinalDay($matches[1], $matches[2], $currentDate);
+        }
+
+        if (preg_match('/^every (\d{1,2})(st|nd|rd|th)?$/', $normalizedPattern, $matches)) {
             $day = (int) $matches[1];
-            return $this->getNextMonthDay($day);
+            return $this->getNextMonthDay($day, $currentDate);
         }
 
-        if ($recurrencePattern === 'yearly') {
+        if ($normalizedPattern === 'yearly') {
             return $currentDate->copy()->addYear();
         }
 
         return null;
+    }
+
+    /**
+     * Check if a recurrence pattern is valid/recognized.
+     * Returns true if the pattern can be processed, false otherwise.
+     */
+    public function isValidRecurrencePattern(string $pattern): bool
+    {
+        if (empty($pattern)) {
+            return false;
+        }
+
+        // Try to get next occurrence - if it returns a date, the pattern is valid
+        $testDate = Carbon::today();
+        $result = $this->getNextOccurrence($pattern, $testDate);
+
+        return $result !== null;
+    }
+
+    /**
+     * Check if the input contains recurrence keywords that we don't recognize.
+     * Returns an error message if unrecognized pattern detected, null otherwise.
+     */
+    public function detectUnrecognizedPattern(string $input): ?string
+    {
+        // List of recurrence-related keywords that suggest the user is trying to specify a pattern
+        $recurrenceKeywords = [
+            'every',
+            'daily',
+            'weekly',
+            'monthly',
+            'yearly',
+            'weekdays',
+            'weekends',
+        ];
+
+        // Check if input contains any recurrence keywords
+        $containsKeyword = false;
+        foreach ($recurrenceKeywords as $keyword) {
+            if (preg_match('/\b' . preg_quote($keyword, '/') . '\b/i', $input)) {
+                $containsKeyword = true;
+                break;
+            }
+        }
+
+        if (!$containsKeyword) {
+            return null;
+        }
+
+        // Now check if we actually parsed a pattern from it
+        $parsed = $this->parseTaskInput($input);
+        if ($parsed['recurrence_pattern'] !== null) {
+            // We recognized the pattern, all good
+            return null;
+        }
+
+        // We found recurrence keywords but couldn't parse a pattern
+        return "The recurrence pattern in '{$input}' was not recognized. Supported patterns include: daily, every other day, weekdays, weekends, every Monday/Tuesday/etc., every other Monday/Tuesday/etc., every 2 weeks, every 1st (monthly), every first Monday (monthly), yearly.";
     }
 }

@@ -15,7 +15,10 @@ export async function login(page, email, password = 'password123') {
   await page.click('button[type="submit"]');
 
   // Wait for navigation to complete (redirects to / which is the dashboard)
-  await page.waitForURL(/^\/$|\/today|\/dashboard|\/tasks/);
+  await page.waitForURL(url => {
+    const path = new URL(url).pathname;
+    return path === '/' || path.startsWith('/today') || path.startsWith('/dashboard') || path.startsWith('/tasks');
+  });
 }
 
 /**
@@ -23,11 +26,14 @@ export async function login(page, email, password = 'password123') {
  * @param {import('@playwright/test').Page} page - Playwright page object
  */
 export async function logout(page) {
-  // Click on user dropdown
+  // Click on user dropdown (look for text containing "User")
   await page.click('button:has-text("User")');
 
-  // Click logout form submit
-  await page.click('form[action="/logout"] button');
+  // Wait for dropdown to open and "Log Out" to be visible
+  await page.waitForSelector('text=Log Out', { state: 'visible' });
+
+  // Click the "Log Out" link in the dropdown
+  await page.click('text=Log Out');
 
   // Wait for redirect to home/login
   await page.waitForURL(/\/login|\/$/);

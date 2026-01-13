@@ -18,7 +18,7 @@ test.describe('Task Authorization & Privacy', () => {
     // User 1 creates a task
     await login(page, testUsers.user1.email);
     await page.goto('/tasks/create');
-    await page.fill('input[name="name"]', 'User 1 Private Task');
+    await page.fill('#name', 'User 1 Private Task');
     await page.fill('textarea[name="description"]', 'This should only be visible to User 1');
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/tasks\/\d+/);
@@ -27,7 +27,7 @@ test.describe('Task Authorization & Privacy', () => {
     // User 2 creates a task
     await login(page, testUsers.user2.email);
     await page.goto('/tasks/create');
-    await page.fill('input[name="name"]', 'User 2 Private Task');
+    await page.fill('#name', 'User 2 Private Task');
     await page.fill('textarea[name="description"]', 'This should only be visible to User 2');
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/tasks\/\d+/);
@@ -49,12 +49,11 @@ test.describe('Task Authorization & Privacy', () => {
     // User 1 creates a task and assigns it to User 2
     await login(page, testUsers.user1.email);
     await page.goto('/tasks/create');
-    await page.fill('input[name="name"]', 'Shared Task for User 2');
+    await page.fill('#name', 'Shared Task for User 2');
     await page.fill('textarea[name="description"]', 'User 2 should see this');
 
     // Assign to User 2
-    await page.click('select[name="assignees[]"]');
-    await page.selectOption('select[name="assignees[]"]', { label: testUsers.user2.name });
+    await page.check(`label:has-text("${testUsers.user2.name}") input[name="assignee_ids[]"]`);
 
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/tasks\/\d+/);
@@ -74,7 +73,7 @@ test.describe('Task Authorization & Privacy', () => {
     // User 1 creates a task
     await login(page, testUsers.user1.email);
     await page.goto('/tasks/create');
-    await page.fill('input[name="name"]', 'User 1 Secret Task');
+    await page.fill('#name', 'User 1 Secret Task');
     await page.fill('textarea[name="description"]', 'User 2 should not see this');
     await page.click('button[type="submit"]');
 
@@ -102,7 +101,7 @@ test.describe('Task Authorization & Privacy', () => {
     // User 1 creates a task
     await login(page, testUsers.user1.email);
     await page.goto('/tasks/create');
-    await page.fill('input[name="name"]', 'User 1 Task to Edit');
+    await page.fill('#name', 'User 1 Task to Edit');
     await page.fill('textarea[name="description"]', 'Original description');
     await page.click('button[type="submit"]');
 
@@ -128,41 +127,49 @@ test.describe('Task Authorization & Privacy', () => {
     // User 1 creates a task
     await login(page, testUsers.user1.email);
     await page.goto('/tasks/create');
-    await page.fill('input[name="name"]', 'Task with Assignees');
+    await page.fill('#name', 'Task with Assignees');
     await page.fill('textarea[name="description"]', 'Testing assignee management');
     await page.click('button[type="submit"]');
 
     await page.waitForURL(/\/tasks\/(\d+)/);
 
-    // Edit to add User 2 as assignee
-    await page.click('a:has-text("Edit")');
-    await page.waitForSelector('select[name="assignees[]"]');
-    await page.selectOption('select[name="assignees[]"]', { label: testUsers.user2.name });
-    await page.click('button[type="submit"]');
+    // Click on the assignee display area to start inline editing
+    // Find the clickable div (has cursor-pointer class)
+    const assigneeSection = page.locator('div.mt-4').filter({ hasText: 'Assigned To' });
+    await assigneeSection.locator('div.cursor-pointer').click();
 
-    // Verify assignee was added
-    await page.waitForURL(/\/tasks\/\d+/);
-    await expect(page.locator(`text=${testUsers.user2.name}`)).toBeVisible();
+    // Wait for the inline edit form to appear and check User 2
+    await page.waitForSelector('label:has-text("' + testUsers.user2.name + '") input[type="checkbox"]', { state: 'visible' });
+    await page.check(`label:has-text("${testUsers.user2.name}") input[type="checkbox"]`);
 
-    // Remove assignee
-    await page.click('a:has-text("Edit")');
-    await page.waitForSelector('select[name="assignees[]"]');
+    // Click Save button in the assignee section (be specific to avoid clicking other Save buttons)
+    await assigneeSection.locator('button:has-text("Save")').click();
 
-    // Deselect User 2
-    await page.selectOption('select[name="assignees[]"]', []);
-    await page.click('button[type="submit"]');
+    // Wait for page reload and verify assignee was added
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator(`text=${testUsers.user2.name}`).first()).toBeVisible();
 
-    // Note: After removing assignee, they should no longer appear
-    // Implementation depends on how your UI displays assignees
+    // Click on "Assigned To" area again to remove assignee
+    await assigneeSection.locator('div.cursor-pointer').click();
+
+    // Wait for the inline edit form and uncheck User 2
+    await page.waitForSelector('label:has-text("' + testUsers.user2.name + '") input[type="checkbox"]', { state: 'visible' });
+    await page.uncheck(`label:has-text("${testUsers.user2.name}") input[type="checkbox"]`);
+
+    // Click Save button in the assignee section
+    await assigneeSection.locator('button:has-text("Save")').click();
+
+    // Wait for page reload - User 2 should no longer appear
+    await page.waitForLoadState('networkidle');
   });
 
   test('assignee can view but verify proper permissions on assigned task', async ({ page }) => {
     // User 1 creates and assigns task to User 3
     await login(page, testUsers.user1.email);
     await page.goto('/tasks/create');
-    await page.fill('input[name="name"]', 'Assigned to User 3');
+    await page.fill('#name', 'Assigned to User 3');
     await page.fill('textarea[name="description"]', 'User 3 is assigned');
-    await page.selectOption('select[name="assignees[]"]', { label: testUsers.user3.name });
+    await page.check(`label:has-text("${testUsers.user3.name}") input[name="assignee_ids[]"]`);
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/tasks\/\d+/);
     await logout(page);
@@ -186,7 +193,7 @@ test.describe('Task Authorization & Privacy', () => {
     await login(page, testUsers.user1.email);
     await page.goto('/tasks/create');
     const uniqueName = `Unique Task ${Date.now()}`;
-    await page.fill('input[name="name"]', uniqueName);
+    await page.fill('#name', uniqueName);
     await page.fill('textarea[name="description"]', 'Should not appear in User 2 search');
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/tasks\/\d+/);
@@ -195,7 +202,7 @@ test.describe('Task Authorization & Privacy', () => {
     // User 2 tries to search for the task
     await login(page, testUsers.user2.email);
     await page.goto('/search');
-    await page.fill('input[name="query"]', uniqueName);
+    await page.fill('#search', uniqueName);
     await page.click('button[type="submit"]');
 
     // Task should not appear in results
@@ -206,7 +213,7 @@ test.describe('Task Authorization & Privacy', () => {
     // User 1 creates an incomplete task
     await login(page, testUsers.user1.email);
     await page.goto('/tasks/create');
-    await page.fill('input[name="name"]', 'User 1 Inbox Task');
+    await page.fill('#name', 'User 1 Inbox Task');
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/tasks\/\d+/);
     await logout(page);
@@ -214,7 +221,7 @@ test.describe('Task Authorization & Privacy', () => {
     // User 2 creates an incomplete task
     await login(page, testUsers.user2.email);
     await page.goto('/tasks/create');
-    await page.fill('input[name="name"]', 'User 2 Inbox Task');
+    await page.fill('#name', 'User 2 Inbox Task');
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/tasks\/\d+/);
 
@@ -228,11 +235,12 @@ test.describe('Task Authorization & Privacy', () => {
     // User 1 creates task for today
     await login(page, testUsers.user1.email);
     await page.goto('/tasks/create');
-    await page.fill('input[name="name"]', 'User 1 Today Task');
+    await page.fill('#name', 'User 1 Today Task');
 
-    // Set datetime to today
+    // Set date and time to today at noon
     const today = new Date().toISOString().split('T')[0];
-    await page.fill('input[name="datetime"]', `${today}T12:00`);
+    await page.fill('input[name="date"]', today);
+    await page.fill('input[name="time"]', '12:00');
 
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/tasks\/\d+/);

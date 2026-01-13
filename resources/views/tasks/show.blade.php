@@ -7,6 +7,24 @@
         </div>
     </x-slot>
 
+    <!-- Breadcrumb for parent hierarchy -->
+    @if($task->parent_id)
+    <div class="py-4 bg-black">
+        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
+            <nav class="flex items-center space-x-2 text-sm text-gray-400">
+                @foreach($task->getAllAncestors()->reverse() as $ancestor)
+                    <a href="{{ route('tasks.show', $ancestor) }}"
+                       class="hover:text-gray-100 transition">
+                        {{ $ancestor->name }}
+                    </a>
+                    <span class="text-gray-600">/</span>
+                @endforeach
+                <span class="text-gray-200 font-semibold">{{ $task->name }}</span>
+            </nav>
+        </div>
+    </div>
+    @endif
+
     <div class="py-12" x-data="taskEditor({{ $task->id }})" x-init="console.log('Alpine initialized', editing, fields)">
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8 space-y-6">
             <!-- Task Details -->
@@ -35,6 +53,24 @@
                     </div>
                 </div>
 
+                @if($task->recurrence_pattern && $task->status !== 'done' && $task->status !== 'archived')
+                <div class="mb-4 p-3 bg-purple-900 bg-opacity-20 border border-purple-500 rounded-lg">
+                    <p class="text-sm text-purple-300">
+                        <span class="font-semibold">🔄 Recurring Task</span> ({{ $task->recurrence_pattern }})
+                    </p>
+                    <p class="text-xs text-purple-400 mt-1">
+                        <strong>Completing this instance:</strong> Marking this task as "done" will complete ONLY this instance
+                        @if($task->children->count() > 0)
+                            (and all {{ $task->children->count() }} subtask(s))
+                        @endif
+                        and automatically create a new one for the next occurrence.
+                    </p>
+                    <p class="text-xs text-purple-400 mt-1">
+                        <strong>To stop the entire series:</strong> Remove the recurrence pattern below before marking done, or change status to "archived" instead.
+                    </p>
+                </div>
+                @endif
+
                 <div class="grid grid-cols-2 gap-4 mb-4">
                     <!-- Status -->
                     <div>
@@ -46,6 +82,9 @@
                                 @else bg-blue-100 text-blue-800 @endif">
                                 {{ ucfirst($task->status) }}
                             </span>
+                            @if($task->recurrence_pattern && $task->status !== 'done')
+                                <span class="ml-2 text-xs text-purple-400">🔄</span>
+                            @endif
                         </div>
                         <div x-show="editing.status" class="mt-1">
                             <select x-model="fields.status"
@@ -159,6 +198,43 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Parent Task -->
+                    <div>
+                        <span class="text-sm font-medium text-gray-500">Parent Task</span>
+                        <div @click="startEdit('parent_id')" x-show="!editing.parent_id" class="mt-1 cursor-pointer hover:bg-gray-700 p-2 rounded">
+                            <p class="text-gray-300">
+                                @if($task->parent)
+                                    {{ $task->parent->name }}
+                                @else
+                                    None (Top-level task)
+                                @endif
+                            </p>
+                        </div>
+                        <div x-show="editing.parent_id" class="mt-1">
+                            <select x-model="fields.parent_id"
+                                    @keydown.enter="saveField('parent_id')"
+                                    @keydown.escape="cancelEdit('parent_id')"
+                                    class="w-full rounded-md bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-500 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">No Parent (Top-level)</option>
+                                @foreach($availableParents as $parentOption)
+                                    <option value="{{ $parentOption->id }}">
+                                        {{ str_repeat('→ ', $parentOption->getDepth()) }}{{ $parentOption->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <div class="flex gap-2 mt-2">
+                                <button @click="saveField('parent_id')"
+                                        class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+                                    Save
+                                </button>
+                                <button @click="cancelEdit('parent_id')"
+                                        class="px-3 py-1 bg-gray-700 text-gray-300 text-sm rounded hover:bg-gray-600">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Description -->
@@ -194,7 +270,13 @@
                     <span class="text-sm font-medium text-gray-500">Recurrence</span>
                     <div @click="startEdit('recurrence_pattern')" x-show="!editing.recurrence_pattern" class="mt-1 cursor-pointer hover:bg-gray-700 p-2 rounded min-h-[40px]">
                         @if($task->recurrence_pattern)
-                            <p class="text-purple-400">{{ $task->recurrence_pattern }}</p>
+                            <p class="text-purple-400 font-semibold">🔄 {{ $task->recurrence_pattern }}</p>
+                            @if($nextDueDate && $task->status !== 'done')
+                            <p class="text-xs text-gray-300 mt-1">Due date after the current: {{ $nextDueDate }}</p>
+                            @endif
+                            @if($task->status !== 'done')
+                            <p class="text-xs text-gray-400 mt-1">ℹ️ When marked done, this task will be completed and a new instance will be created for the next occurrence.</p>
+                            @endif
                         @else
                             <p class="text-gray-400 italic">Click to set recurrence</p>
                         @endif
@@ -305,27 +387,71 @@
                 @endif
             </div>
 
+            <!-- Subtasks -->
+            <div class="bg-gray-800 border border-gray-700 overflow-hidden shadow-sm sm:rounded-lg p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-100">
+                        Subtasks
+                        @if($task->children->count() > 0)
+                            <span class="text-sm text-gray-400 font-normal">
+                                ({{ $task->incompleteChildren()->count() }} of {{ $task->children->count() }} incomplete)
+                            </span>
+                        @endif
+                    </h3>
+                    <a href="{{ route('tasks.create', ['parent_id' => $task->id]) }}"
+                       class="inline-flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+                        + Add Subtask
+                    </a>
+                </div>
+
+                @if($task->children->count() > 0)
+                    <div class="space-y-2">
+                        <x-subtask-list :tasks="$task->children" :parent="$task" />
+                    </div>
+                @else
+                    <p class="text-sm text-gray-500 italic">No subtasks yet. Click "Add Subtask" to create one.</p>
+                @endif
+            </div>
+
             <!-- Attachments -->
             <div class="bg-gray-800 border border-gray-700 overflow-hidden shadow-sm sm:rounded-lg p-6">
                 <h3 class="text-lg font-semibold text-gray-100 mb-4">Attachments</h3>
                 @if($task->attachments->count() > 0)
                     <div class="space-y-2">
                         @foreach($task->attachments as $attachment)
-                            <div class="flex items-center justify-between p-2 bg-gray-700 border border-gray-600 rounded">
-                                <span class="text-sm text-gray-300">{{ $attachment->original_filename }}</span>
-                                <div class="flex gap-2">
-                                    <a href="{{ route('attachments.download', [$task, $attachment]) }}" class="text-sm text-blue-400 hover:underline">
-                                        Download
-                                    </a>
-                                    @if($task->creator_id === Auth::id())
-                                        <form method="POST" action="{{ route('attachments.destroy', [$task, $attachment]) }}" class="inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-sm text-red-600 hover:underline" onclick="return confirm('Are you sure?')">
-                                                Delete
-                                            </button>
-                                        </form>
+                            <div class="flex items-center gap-3 p-2 bg-gray-700 border border-gray-600 rounded">
+                                <!-- Thumbnail/Icon -->
+                                <div class="flex-shrink-0 w-16 h-16 bg-gray-600 rounded overflow-hidden flex items-center justify-center">
+                                    @if(str_starts_with($attachment->mime_type, 'image/'))
+                                        <img src="{{ route('attachments.view', [$task, $attachment]) }}"
+                                             alt="{{ $attachment->original_filename }}"
+                                             class="w-full h-full object-cover">
+                                    @else
+                                        <!-- File icon placeholder -->
+                                        <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                        </svg>
                                     @endif
+                                </div>
+
+                                <!-- Filename and Actions -->
+                                <div class="flex-1 flex items-center justify-between">
+                                    <span class="text-sm text-gray-300">{{ $attachment->original_filename }}</span>
+                                    <div class="flex gap-2">
+                                        <a href="{{ route('attachments.download', [$task, $attachment]) }}" class="text-sm text-blue-400 hover:underline">
+                                            Download
+                                        </a>
+                                        @if($task->creator_id === Auth::id())
+                                            <form method="POST" action="{{ route('attachments.destroy', [$task, $attachment]) }}" class="inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="text-sm text-red-600 hover:underline" onclick="return confirm('Are you sure?')">
+                                                    Delete
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
                         @endforeach
@@ -389,6 +515,14 @@
                     </div>
                 </form>
             </div>
+
+            <!-- Change Log -->
+            <div class="bg-gray-800 border border-gray-700 overflow-hidden shadow-sm sm:rounded-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-100 mb-4">Change Log</h3>
+                <div class="space-y-4">
+                    <x-change :changes="$task->changeLogs" />
+                </div>
+            </div>
         </div>
     </div>
 
@@ -430,6 +564,23 @@
 
                 async saveField(field) {
                     try {
+                        // Check if marking a recurring task as done
+                        if (field === 'status' && this.fields.status === 'done' && this.fields.recurrence_pattern) {
+                            const confirmed = confirm(
+                                '🔄 Recurring Task: Marking as Done\n\n' +
+                                'This will complete THIS instance only and create a new task for the next occurrence.\n\n' +
+                                'To stop the recurring series instead:\n' +
+                                '• Remove the recurrence pattern first, then mark done, OR\n' +
+                                '• Change status to "Archived" instead\n\n' +
+                                'Continue with marking this instance done?'
+                            );
+                            if (!confirmed) {
+                                this.resetField(field);
+                                this.editing[field] = false;
+                                return;
+                            }
+                        }
+
                         const formData = new FormData();
                         formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
                         formData.append('field', field);

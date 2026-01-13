@@ -4,8 +4,9 @@ This is a vibe-coded to-do list software that is a lot like many of the other op
 Because I designed this for my own devious purposes, I assumed there would only be two or three users. It would probably fine for more than that, but it's not designed to scale. It assumes at least one user is technical enough to run this on a server and run scripts at the command line.
 
 ### Admin-Like Functions
+There is no admin UI. Here are the commands to do admin-like things.
+
 #### Create/Disable users
-There is no admin UI. Here are the commands to do admin-like things:
 - Create a user: `php artisan user:create {email} {name} {password}`
 - Toggle whether a user is enabled or disabled: `php artisan user:toggle {email}`
 
@@ -17,3 +18,14 @@ A user who is disabled is unable to log in, but their tasks remain present. If t
 
 An invalidated API key cannot be re-validated.
 
+### Adding Other Pages
+I created this functionality so somebody can put up their own Privacy Policy, Terms of Service, documentation or whatever.
+
+To add a new page:
+1. Put a Markdown file in storage/app/other-links
+2. A link pointing to it will appear as a link on the page /other-links. 
+   - You can access it at /other-links/[filename]. 
+   - The title will be the filename minus the extension with - and _ replaced with spaces. The example file in there, Read-Me.md, will show up with the title Read Me.
+3. The code will turn the Markdown into HTML and spit out the contents. 
+
+If you add documentation, please consider contributing it back to this project. If it's something you/your users need documented, there's probably somebody else out there who could also use it.

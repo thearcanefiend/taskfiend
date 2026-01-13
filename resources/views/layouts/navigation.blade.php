@@ -36,6 +36,35 @@
                     <x-nav-link :href="route('changelogs.user')" :active="request()->routeIs('changelogs.*')">
                         {{ __('Activity') }}
                     </x-nav-link>
+
+                    @if($otherLinksFiles->isNotEmpty())
+                        <!-- Other Links Dropdown -->
+                        <div class="hidden sm:flex sm:items-center">
+                            <x-dropdown align="left" width="48">
+                                <x-slot name="trigger">
+                                    <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-400 hover:text-gray-100 focus:outline-none transition ease-in-out duration-150">
+                                        <div>{{ __('Other Links') }}</div>
+                                        <div class="ms-1">
+                                            <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                            </svg>
+                                        </div>
+                                    </button>
+                                </x-slot>
+                                <x-slot name="content">
+                                    @foreach($otherLinksFiles as $filename => $displayName)
+                                        <x-dropdown-link href="/other-links/{{ $filename }}">
+                                            {{ $displayName }}
+                                        </x-dropdown-link>
+                                    @endforeach
+                                </x-slot>
+                            </x-dropdown>
+                        </div>
+                    @endif
+
+                    <x-nav-link :href="route('tasks.create')" :active="request()->routeIs('tasks.create')" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700">
+                        Add Task
+                    </x-nav-link>
                 </div>
             </div>
 
@@ -111,6 +140,29 @@
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('changelogs.user')" :active="request()->routeIs('changelogs.*')">
                 {{ __('Activity') }}
+            </x-responsive-nav-link>
+
+            @if($otherLinksFiles->isNotEmpty())
+                <!-- Other Links Collapsible Section -->
+                <div x-data="{ otherLinksOpen: false }" class="border-t border-gray-700">
+                    <button @click="otherLinksOpen = ! otherLinksOpen" class="w-full flex items-center justify-between px-4 py-2 text-base font-medium text-gray-400 hover:text-gray-100 hover:bg-gray-700 focus:outline-none focus:text-gray-100 focus:bg-gray-700 transition duration-150 ease-in-out">
+                        <span>{{ __('Other Links') }}</span>
+                        <svg class="h-5 w-5 transform transition-transform duration-200" :class="{'rotate-180': otherLinksOpen}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <div x-show="otherLinksOpen" x-transition class="bg-gray-900">
+                        @foreach($otherLinksFiles as $filename => $displayName)
+                            <x-responsive-nav-link href="/other-links/{{ $filename }}" :active="request()->routeIs('other.links.link') && request()->route('filename') === $filename">
+                                {{ $displayName }}
+                            </x-responsive-nav-link>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            <x-responsive-nav-link :href="route('tasks.create')" :active="request()->routeIs('tasks.create')" class="bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700">
+                Add Task
             </x-responsive-nav-link>
         </div>
 

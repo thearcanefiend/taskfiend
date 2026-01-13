@@ -2,6 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
+[x-cloak] {
+    display: none !important;
+}
+
 main {
     background-color: black;
+}
+
+.markdown h2 {
+    padding-top: 1em;
+    font-size: xx-large;
+}
+
+.markdown h3 {
+    padding-top: 1em;
+    font-size: x-large;
+}
+
+.markdown h4 {
+    padding-top: 1em;
+    font-size: large;
+}
+
+.markdown ol, .markdown ul {
+    padding-inline-start: 1em;
+}
+
+.markdown ul>li {
+    list-style-type: disc;
+}
+
+.markdown ol>li {
+    list-style-type: number;
+}
+
+.markdown p {
+    padding-bottom: 1em;
+    padding-top: 1em;
 }

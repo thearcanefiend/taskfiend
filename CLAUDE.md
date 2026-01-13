@@ -55,10 +55,22 @@ In `app/Console/Commands/`:
 
 ### Recurring Tasks (✓)
 - **Implementation** in TaskController::createRecurringTask()
-- Creates next occurrence when task marked done
-- Prevents duplicate occurrences
-- Copies: name, description, datetime, project, tags, assignments, attachments
-- Does NOT copy: comments
+- **User Documentation**: See `RECURRING_TASKS.md` for complete user guide
+- **Behavior**: When a recurring task is marked as "done":
+  - The current task instance is marked as complete (status changes to "done")
+  - A new task instance is automatically created for the next occurrence date
+  - The series continues indefinitely until manually stopped
+- **To complete just one instance**: Click the status field and change to "done" - this completes ONLY that instance and creates the next one
+- **To stop a recurring series**: Remove the recurrence_pattern before or after marking done, or archive the task
+- **UI Enhancements**:
+  - Purple banner warning when viewing an incomplete recurring task
+  - Confirmation dialog when marking recurring task as done
+  - Visual 🔄 indicator next to status field
+  - Informational text explaining what will happen
+- **Prevents duplicate occurrences**: Won't create a new task if one already exists for the next date
+- **Copies to next instance**: name, description, datetime, project, tags, assignments, attachments
+- **Does NOT copy**: comments, completion status
+- **Location**: TaskController::createRecurringTask() (line 322), triggered in updateField() (line 285) and update() (line 220)
 
 ### Frontend Views (✓)
 **All views completed in `resources/views/`:**
@@ -210,7 +222,21 @@ Test user already created with API key generated.
 
 ## Important Notes
 
-### Recent Session Summary (Dec 30, 2025)
+### Recent Session Summary (Jan 6, 2026)
+- **Fixed critical recurring task bugs**:
+  - Quick complete button (circle/dot) now preserves all task fields including recurrence_pattern
+  - Added support for "every other [day]" patterns (e.g., "every other Wednesday")
+  - Recurring tasks now properly create next instance when marked done via quick complete
+- **Enhanced recurring task UX**:
+  - Purple border on quick complete button for recurring tasks
+  - Tooltip shows what will happen when completing
+  - All task data (tags, assignees, attachments) preserved in quick complete
+- **DateParser enhancements**:
+  - Added pattern matching for "every other Monday/Tuesday/etc."
+  - Added getNextOccurrence support for bi-weekly day patterns
+  - Location: DateParser.php lines 22, 46-50, 270-273
+
+### Session Summary (Dec 30, 2025)
 - Completed all remaining views (tags, search, changelogs)
 - Tested application end-to-end
 - Fixed DateParser bug with "every [day]" pattern

@@ -28,7 +28,7 @@
                             @error('description')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
 
-                        <div class="mb-6">
+                        <div class="mb-4">
                             <label for="status" class="block text-sm font-medium text-gray-300 mb-2">Status</label>
                             <select name="status" id="status"
                                     class="w-full rounded-md bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-500 shadow-sm focus:border-blue-500 focus:ring-blue-500">
@@ -37,6 +37,20 @@
                                 <option value="archived" {{ old('status', $project->status) === 'archived' ? 'selected' : '' }}>Archived</option>
                             </select>
                             @error('status')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Assign To</label>
+                            <div class="space-y-2">
+                                @foreach($users as $user)
+                                    <label class="flex items-center">
+                                        <input type="checkbox" name="assignee_ids[]" value="{{ $user->id }}"
+                                               class="rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500"
+                                               {{ in_array($user->id, old('assignee_ids', $project->assignees->pluck('id')->toArray())) ? 'checked' : '' }}>
+                                        <span class="ml-2 text-sm text-gray-300">{{ $user->name }} ({{ $user->email }})</span>
+                                    </label>
+                                @endforeach
+                            </div>
                         </div>
 
                         <div class="flex items-center gap-4">

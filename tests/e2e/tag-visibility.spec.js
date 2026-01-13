@@ -19,8 +19,7 @@ test.describe('Tag Visibility & Global Access', () => {
     await login(page, testUsers.user1.email);
     await page.goto('/tags/create');
     const uniqueTagName = `Global Tag ${Date.now()}`;
-    await page.fill('input[name="name"]', uniqueTagName);
-    await page.fill('textarea[name="description"]', 'This tag should be visible to all users');
+    await page.fill('#tag_name', uniqueTagName);
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/tags\/\d+/);
     await logout(page);
@@ -41,8 +40,7 @@ test.describe('Tag Visibility & Global Access', () => {
     // User 1 creates a tag
     await login(page, testUsers.user1.email);
     await page.goto('/tags/create');
-    await page.fill('input[name="name"]', 'Viewable Tag');
-    await page.fill('textarea[name="description"]', 'Everyone should see this description');
+    await page.fill('#tag_name', 'Viewable Tag');
     await page.click('button[type="submit"]');
 
     await page.waitForURL(/\/tags\/(\d+)/);
@@ -53,16 +51,14 @@ test.describe('Tag Visibility & Global Access', () => {
     // User 2 can view the tag detail
     await login(page, testUsers.user2.email);
     await page.goto(`/tags/${tagId}`);
-    await expect(page.locator('text=Viewable Tag')).toBeVisible();
-    await expect(page.locator('text=Everyone should see this description')).toBeVisible();
+    await expect(page.locator('text=Viewable Tag').first()).toBeVisible();
   });
 
   test('all users can edit any tag', async ({ page }) => {
     // User 1 creates a tag
     await login(page, testUsers.user1.email);
     await page.goto('/tags/create');
-    await page.fill('input[name="name"]', 'Editable Tag');
-    await page.fill('textarea[name="description"]', 'Original description');
+    await page.fill('#tag_name', 'Editable Tag');
     await page.click('button[type="submit"]');
 
     await page.waitForURL(/\/tags\/(\d+)/);
@@ -75,15 +71,15 @@ test.describe('Tag Visibility & Global Access', () => {
     await page.goto(`/tags/${tagId}/edit`);
 
     // Should be able to access edit page
-    await expect(page.locator('input[name="name"]')).toBeVisible();
+    await expect(page.locator('input[name="tag_name"]')).toBeVisible();
 
     // Edit the tag
-    await page.fill('textarea[name="description"]', 'Updated by User 2');
-    await page.click('button[type="submit"]');
+    await page.fill('#tag_name', 'Editable Tag Updated');
+    await page.click('button:has-text("Update Tag")');
 
     // Verify the update
     await page.waitForURL(/\/tags\/\d+/);
-    await expect(page.locator('text=Updated by User 2')).toBeVisible();
+    await expect(page.locator('text=Editable Tag Updated').first()).toBeVisible();
   });
 
   test('users can use tags created by other users on their tasks', async ({ page }) => {
@@ -91,7 +87,7 @@ test.describe('Tag Visibility & Global Access', () => {
     await login(page, testUsers.user1.email);
     await page.goto('/tags/create');
     const sharedTagName = `Shared Tag ${Date.now()}`;
-    await page.fill('input[name="name"]', sharedTagName);
+    await page.fill('#tag_name', sharedTagName);
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/tags\/\d+/);
     await logout(page);
@@ -99,22 +95,22 @@ test.describe('Tag Visibility & Global Access', () => {
     // User 2 creates a task and applies User 1's tag
     await login(page, testUsers.user2.email);
     await page.goto('/tasks/create');
-    await page.fill('input[name="name"]', 'Task with Shared Tag');
+    await page.fill('#name', 'Task with Shared Tag');
 
-    // Apply the tag created by User 1
-    await page.selectOption('select[name="tags[]"]', { label: sharedTagName });
+    // Apply the tag created by User 1 (tags are checkboxes)
+    await page.check(`label:has-text("${sharedTagName}") input[name="tag_ids[]"]`);
     await page.click('button[type="submit"]');
 
     // Verify tag is applied
     await page.waitForURL(/\/tasks\/\d+/);
-    await expect(page.locator(`text=${sharedTagName}`)).toBeVisible();
+    await expect(page.locator(`text=${sharedTagName}`).first()).toBeVisible();
   });
 
   test('tag list shows tags from all users', async ({ page }) => {
     // User 1 creates a tag
     await login(page, testUsers.user1.email);
     await page.goto('/tags/create');
-    await page.fill('input[name="name"]', 'User 1 Tag');
+    await page.fill('#tag_name', 'User 1 Tag');
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/tags\/\d+/);
     await logout(page);
@@ -122,7 +118,7 @@ test.describe('Tag Visibility & Global Access', () => {
     // User 2 creates a tag
     await login(page, testUsers.user2.email);
     await page.goto('/tags/create');
-    await page.fill('input[name="name"]', 'User 2 Tag');
+    await page.fill('#tag_name', 'User 2 Tag');
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/tags\/\d+/);
 
@@ -144,8 +140,7 @@ test.describe('Tag Visibility & Global Access', () => {
     await login(page, testUsers.user1.email);
     await page.goto('/tags/create');
     const searchableTag = `Searchable ${Date.now()}`;
-    await page.fill('input[name="name"]', searchableTag);
-    await page.fill('textarea[name="description"]', 'Should appear in all user searches');
+    await page.fill('#tag_name', searchableTag);
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/tags\/\d+/);
     await logout(page);
@@ -153,7 +148,7 @@ test.describe('Tag Visibility & Global Access', () => {
     // User 2 searches for the tag
     await login(page, testUsers.user2.email);
     await page.goto('/search');
-    await page.fill('input[name="query"]', searchableTag);
+    await page.fill('#search', searchableTag);
     await page.click('button[type="submit"]');
 
     // Tag should appear in search results
@@ -165,7 +160,7 @@ test.describe('Tag Visibility & Global Access', () => {
     await login(page, testUsers.user1.email);
     await page.goto('/tags/create');
     const deletableTag = `Deletable ${Date.now()}`;
-    await page.fill('input[name="name"]', deletableTag);
+    await page.fill('#tag_name', deletableTag);
     await page.click('button[type="submit"]');
 
     await page.waitForURL(/\/tags\/(\d+)/);
@@ -190,6 +185,9 @@ test.describe('Tag Visibility & Global Access', () => {
     if (hasDeleteButton) {
       // Note: Per spec, deletion might not be allowed (only archiving)
       // But testing the global impact if deletion exists
+
+      // Handle the confirmation dialog
+      page.once('dialog', dialog => dialog.accept());
       await deleteButton.click();
       await page.waitForURL(/\/tags/);
 
@@ -205,8 +203,7 @@ test.describe('Tag Visibility & Global Access', () => {
     // User 1 creates a tag
     await login(page, testUsers.user1.email);
     await page.goto('/tags/create');
-    await page.fill('input[name="name"]', 'Mutable Tag');
-    await page.fill('textarea[name="description"]', 'Original description');
+    await page.fill('#tag_name', 'Mutable Tag');
     await page.click('button[type="submit"]');
 
     await page.waitForURL(/\/tags\/(\d+)/);
@@ -214,18 +211,17 @@ test.describe('Tag Visibility & Global Access', () => {
     const tagId = tagUrl.match(/\/tags\/(\d+)/)[1];
     await logout(page);
 
-    // User 2 edits the tag description
+    // User 2 edits the tag name
     await login(page, testUsers.user2.email);
     await page.goto(`/tags/${tagId}/edit`);
-    await page.fill('textarea[name="description"]', 'Modified by User 2');
-    await page.click('button[type="submit"]');
+    await page.fill('#tag_name', 'Mutable Tag Modified');
+    await page.click('button:has-text("Update Tag")');
     await logout(page);
 
     // User 1 should see the changes made by User 2
     await login(page, testUsers.user1.email);
     await page.goto(`/tags/${tagId}`);
-    await expect(page.locator('text=Modified by User 2')).toBeVisible();
-    await expect(page.locator('text=Original description')).not.toBeVisible();
+    await expect(page.locator('text=Mutable Tag Modified').first()).toBeVisible();
   });
 
   test('but users still cannot see tasks tagged with tags if not authorized', async ({ page }) => {
@@ -233,14 +229,14 @@ test.describe('Tag Visibility & Global Access', () => {
     await login(page, testUsers.user1.email);
     await page.goto('/tags/create');
     const tagName = `Privacy Test Tag ${Date.now()}`;
-    await page.fill('input[name="name"]', tagName);
+    await page.fill('#tag_name', tagName);
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/tags\/\d+/);
 
     // User 1 creates a private task with this tag
     await page.goto('/tasks/create');
-    await page.fill('input[name="name"]', 'Private Task with Tag');
-    await page.selectOption('select[name="tags[]"]', { label: tagName });
+    await page.fill('#name', 'Private Task with Tag');
+    await page.check(`label:has-text("${tagName}") input[name="tag_ids[]"]`);
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/tasks\/\d+/);
     await logout(page);
@@ -256,7 +252,7 @@ test.describe('Tag Visibility & Global Access', () => {
 
     // And searching for the tag should not reveal User 1's task to User 2
     await page.goto('/search');
-    await page.fill('input[name="query"]', tagName);
+    await page.fill('#search', tagName);
     await page.click('button[type="submit"]');
 
     // User 2 might see the tag itself in results, but not User 1's private task

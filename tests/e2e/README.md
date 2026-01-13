@@ -285,6 +285,148 @@ npx playwright test --headed --slowmo=1000
 5. **Wait**: Use `waitForURL`, `waitForSelector` instead of arbitrary timeouts
 6. **Debug**: Use `page.pause()` to debug tests interactively
 
+## Common Patterns & Pitfalls
+
+### Strict Mode Violations
+
+**Problem**: Locators that match multiple elements cause "strict mode violation" errors.
+
+```javascript
+// ❌ BAD: Will fail if "Task Name" appears multiple times
+await expect(page.locator('text=Task Name')).toBeVisible();
+
+// ✅ GOOD: Use .first() to select the first match
+await expect(page.locator('text=Task Name').first()).toBeVisible();
+
+// ✅ BETTER: Use more specific selectors
+await expect(page.locator('h2:has-text("Task Name")')).toBeVisible();
+```
+
+**When this happens**: Common with tag names, user names, or any repeated content on a page.
+
+### Confirmation Dialogs
+
+**Problem**: Clicking buttons with `onclick="return confirm(...)"` times out.
+
+```javascript
+// ❌ BAD: Click will trigger dialog but test will hang
+await page.click('button:has-text("Delete")');
+
+// ✅ GOOD: Handle dialog before clicking
+page.once('dialog', dialog => dialog.accept());
+await page.click('button:has-text("Delete")');
+
+// For canceling:
+page.once('dialog', dialog => dialog.dismiss());
+```
+
+### Dropdown Menus
+
+**Problem**: Clicking dropdown items fails with "element not visible".
+
+```javascript
+// ❌ BAD: Dropdown may not be open yet
+await page.click('button:has-text("User")');
+await page.click('text=Log Out');
+
+// ✅ GOOD: Wait for dropdown to open
+await page.click('button:has-text("User")');
+await page.waitForSelector('text=Log Out', { state: 'visible' });
+await page.click('text=Log Out');
+```
+
+### Inline Editing with Alpine.js
+
+**Problem**: Clicking wrong element or finding multiple "Save" buttons.
+
+```javascript
+// ❌ BAD: Clicks nested child instead of clickable parent
+await page.locator('div.space-y-1').click();
+
+// ❌ BAD: Multiple Save buttons exist on page
+await page.click('button:has-text("Save")');
+
+// ✅ GOOD: Click the actual clickable element
+await page.locator('div.cursor-pointer').click();
+
+// ✅ GOOD: Scope button selector to specific section
+const section = page.locator('div').filter({ hasText: 'Assigned To' });
+await section.locator('button:has-text("Save")').click();
+```
+
+### Form Submissions
+
+**Problem**: Nested forms or multiple submit buttons cause unexpected behavior.
+
+```javascript
+// ❌ BAD: May submit wrong form if forms are nested
+await page.click('button[type="submit"]');
+
+// ✅ GOOD: Use specific button text or scope to form
+await page.click('button:has-text("Update Tag")');
+
+// ✅ GOOD: Ensure forms are separate in HTML
+<form method="POST" action="/update">
+  <button type="submit">Update</button>
+</form>
+<form method="POST" action="/delete">
+  <button type="submit">Delete</button>
+</form>
+```
+
+### Filtering Locators
+
+**Problem**: Need to find a specific instance among multiple similar elements.
+
+```javascript
+// ❌ BAD: Gets first div with class mt-4 (may not be the right one)
+await page.locator('div.mt-4').click();
+
+// ✅ GOOD: Filter by text content
+const section = page.locator('div.mt-4').filter({ hasText: 'Assigned To' });
+await section.locator('div.cursor-pointer').click();
+
+// ✅ GOOD: Use nth() for specific index
+await page.locator('div.task-card').nth(2).click();
+```
+
+### Waiting for Dynamic Content
+
+**Problem**: Elements added by JavaScript may not be ready immediately.
+
+```javascript
+// ❌ BAD: May fail if content loads slowly
+await page.click('#load-more');
+await page.click('.new-item');
+
+// ✅ GOOD: Wait for specific selector to appear
+await page.click('#load-more');
+await page.waitForSelector('.new-item', { state: 'visible' });
+await page.click('.new-item');
+
+// ✅ GOOD: Wait for network to be idle
+await page.click('#load-more');
+await page.waitForLoadState('networkidle');
+```
+
+### Test Data Uniqueness
+
+**Problem**: Tests interfere with each other due to shared data.
+
+```javascript
+// ❌ BAD: Hard-coded names may conflict
+await page.fill('#name', 'Test Task');
+
+// ✅ GOOD: Use timestamps for uniqueness
+await page.fill('#name', `Test Task ${Date.now()}`);
+
+// ✅ GOOD: Use test isolation with beforeEach
+test.beforeEach(async () => {
+  await resetDatabase();
+  await seedTestData();
+});
+```
+
 ## Additional Resources
 
 - [Playwright Documentation](https://playwright.dev)

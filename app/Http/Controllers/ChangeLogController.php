@@ -7,24 +7,20 @@ use App\Models\Task;
 use App\Models\Project;
 use App\Models\Tag;
 use Illuminate\Http\Request;
+//use App\Repositories\ChangeLogRepository;
 use Illuminate\Support\Facades\Auth;
 
 class ChangeLogController extends Controller
 {
+/*    public function __construct(
+        protected readonly ChangeLogRepository $changeLogRepository
+    ) {
+        //
+    }
+*/
     public function task(Task $task)
     {
-        $isCreator = $task->creator_id === Auth::id();
-        $isAssignee = $task->assignees->contains('id', Auth::id());
-
-        if (!$isCreator && !$isAssignee) {
-            abort(403, 'You do not have access to this task.');
-        }
-
-        $changeLogs = ChangeLog::where('entity_type', 'tasks')
-            ->where('entity_id', $task->id)
-            ->with('user')
-            ->orderByDesc('date')
-            ->get();
+        $changeLogs = $task->changeLogs()->get();
 
         return view('changelogs.index', compact('changeLogs', 'task'));
     }
@@ -75,7 +71,7 @@ class ChangeLogController extends Controller
                               $query->where('users.id', Auth::id());
                           });
                     })
-                    ->pluck('id');
+                    ->pluck('tasks.id');
                 $subQ->where('entity_type', 'tasks')
                      ->whereIn('entity_id', $taskIds);
             });
@@ -93,6 +89,8 @@ class ChangeLogController extends Controller
             ->with('user')
             ->orderByDesc('date')
             ->get();
+
+//        dd($changeLogs);
 
         // Load related entities for display
         foreach ($changeLogs as $log) {

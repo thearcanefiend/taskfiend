@@ -47,6 +47,14 @@ return [
             'report' => false,
         ],
 
+        'other-links' => [
+            'driver' => 'local',
+            'root' => storage_path('app/other-links'),
+            'visibility' => 'private',
+            'throw' => false,
+            'report' => false,
+        ],
+
         'private' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),

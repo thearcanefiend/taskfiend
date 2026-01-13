@@ -5,6 +5,9 @@
                 {{ $project->name }}
             </h2>
             <div class="flex gap-2">
+                <a href="{{ route('projects.export-template', $project) }}" class="px-4 py-2 bg-gray-700 border border-gray-600 text-gray-100 rounded hover:bg-gray-600">
+                    Export as Template
+                </a>
                 @if($project->user_id === Auth::id() && !$project->is_inbox)
                     <a href="{{ route('projects.edit', $project) }}" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
                         Edit
@@ -40,6 +43,17 @@
                     <div class="mt-4">
                         <span class="text-sm font-medium text-gray-500">Description</span>
                         <p class="mt-1 text-gray-300">{{ $project->description }}</p>
+                    </div>
+                @endif
+
+                @if($project->assignees->count() > 0)
+                    <div class="mt-4">
+                        <span class="text-sm font-medium text-gray-500">Assigned To</span>
+                        <div class="mt-1 space-y-1">
+                            @foreach($project->assignees as $assignee)
+                                <p class="text-sm text-gray-300">{{ $assignee->name }}</p>
+                            @endforeach
+                        </div>
                     </div>
                 @endif
             </div>

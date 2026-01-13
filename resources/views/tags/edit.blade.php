@@ -36,15 +36,17 @@
                             <a href="{{ route('tags.show', $tag) }}" class="text-sm text-gray-400 hover:text-gray-300">
                                 Cancel
                             </a>
-                            <form method="POST" action="{{ route('tags.destroy', $tag) }}" class="ml-auto">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-sm text-red-600 hover:underline" onclick="return confirm('Are you sure you want to delete this tag?')">
-                                    Delete Tag
-                                </button>
-                            </form>
                         </div>
                     </form>
+
+                    <form method="POST" action="{{ route('tags.destroy', $tag) }}" class="ml-auto">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="text-sm text-red-600 hover:underline" onclick="return confirm('Are you sure you want to delete this tag?')">
+                            Delete Tag
+                        </button>
+                    </form>
+
                 </div>
             </div>
         </div>

@@ -109,6 +109,7 @@
                                    value="{{ old('recurrence_pattern') }}"
                                    placeholder="e.g., daily, every Monday, weekdays">
                             <p class="mt-1 text-xs text-gray-500">Leave blank to auto-detect from task name.</p>
+                            <p class="mt-1 text-xs text-gray-400">Supported: daily, every other day, weekdays, weekends, every Monday/Tuesday/etc., every other Wednesday, every 2 weeks, every 15th, every first Monday, yearly</p>
                             @error('recurrence_pattern')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
 
@@ -125,6 +126,48 @@
                             </select>
                             @error('project_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
+
+                        <!-- Parent Task (Subtask) -->
+                        @if(isset($preselectedParentId) && $preselectedParentId)
+                        <div class="mb-4">
+                            <label for="parent_id" class="block text-sm font-medium text-gray-300 mb-2">
+                                Parent Task (Creating Subtask)
+                            </label>
+                            <div class="p-3 bg-gray-700 border border-gray-600 rounded-md">
+                                <p class="text-sm text-gray-300">
+                                    <span class="text-gray-500">Subtask of:</span>
+                                    <a href="{{ route('tasks.show', $preselectedParentTask) }}"
+                                       class="text-blue-400 hover:underline ml-1"
+                                       target="_blank">
+                                        {{ $preselectedParentTask->name }}
+                                    </a>
+                                </p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    This task will inherit assignees from the parent unless you specify different ones below.
+                                </p>
+                            </div>
+                            <input type="hidden" name="parent_id" value="{{ $preselectedParentId }}">
+                        </div>
+                        @else
+                        <div class="mb-4">
+                            <label for="parent_id" class="block text-sm font-medium text-gray-300 mb-2">
+                                Parent Task (Optional - create as subtask)
+                            </label>
+                            <select name="parent_id" id="parent_id"
+                                    class="w-full rounded-md bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-500 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">None (Top-level task)</option>
+                                @foreach($availableParents as $parentOption)
+                                    <option value="{{ $parentOption->id }}">
+                                        {{ str_repeat('→ ', $parentOption->getDepth()) }}{{ $parentOption->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <p class="mt-1 text-xs text-gray-500">
+                                Select a parent task to create this as a subtask. Subtasks inherit permissions from their parent.
+                            </p>
+                            @error('parent_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                        </div>
+                        @endif
 
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-300 mb-2">Tags</label>

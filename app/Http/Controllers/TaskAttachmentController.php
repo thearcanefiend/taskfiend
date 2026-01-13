@@ -93,4 +93,26 @@ class TaskAttachmentController extends Controller
             $attachment->original_filename
         );
     }
+
+    public function view(Task $task, TaskAttachment $attachment)
+    {
+        if ($attachment->task_id !== $task->id) {
+            abort(404);
+        }
+
+        $isCreator = $task->creator_id === Auth::id();
+        $isAssignee = $task->assignees->contains('id', Auth::id());
+
+        if (!$isCreator && !$isAssignee) {
+            abort(403, 'You do not have access to this attachment.');
+        }
+
+        return Storage::disk('private')->response(
+            $attachment->file_path,
+            $attachment->original_filename,
+            [
+                'Content-Type' => $attachment->mime_type,
+            ]
+        );
+    }
 }
