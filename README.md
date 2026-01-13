@@ -3,6 +3,15 @@ This is a vibe-coded to-do list software that is a lot like many of the other op
 
 Because I designed this for my own devious purposes, I assumed there would only be two or three users. It would probably fine for more than that, but it's not designed to scale. It assumes at least one user is technical enough to run this on a server and run scripts at the command line.
 
+### Get Docker Running:
+1. Create environment file: `cp .env.example .env`
+2. Edit .env and set APP_KEY, APP_ENV=production, APP_DEBUG=false
+3. Build and start containers: `docker-compose up -d --build`
+4. Run migrations and create first user:
+   - `docker-compose exec app php artisan migrate --force`
+   - `docker-compose exec app php artisan user:create admin@example.com "Admin User" password123`
+
+
 ### Admin-Like Functions
 There is no admin UI. Here are the commands to do admin-like things.
 
