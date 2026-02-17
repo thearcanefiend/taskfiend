@@ -58,9 +58,16 @@
                                                 <span :style="'color: ' + tag.color" x-text="tag.tag_name"></span>
                                             </div>
                                         </template>
-                                        <div x-show="filteredTags.length === 0" class="px-3 py-2 text-sm text-gray-500 italic">
-                                            No matching tags
-                                        </div>
+                                        <template x-if="autocompleteQuery.length > 0 && !hasExactTagMatch">
+                                            <div class="border-t border-gray-600">
+                                                <div class="px-2 py-1 hover:bg-gray-600 cursor-pointer text-sm flex items-center text-green-400"
+                                                     @click.prevent="createAndSelectTag(autocompleteQuery)"
+                                                     :class="{ 'bg-gray-600': autocompleteIndex === filteredTags.length }">
+                                                    <span class="mr-1">+</span>
+                                                    Create new tag "<span x-text="autocompleteQuery" class="font-semibold"></span>"?
+                                                </div>
+                                            </div>
+                                        </template>
                                     </div>
                                 </template>
                             </div>
@@ -172,17 +179,17 @@
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-300 mb-2">Tags</label>
                             <div class="space-y-2">
-                                @foreach($tags as $tag)
+                                <template x-for="tag in tags" :key="tag.id">
                                     <label class="inline-flex items-center mr-4">
                                         <input type="checkbox"
                                                name="tag_ids[]"
-                                               value="{{ $tag->id }}"
-                                               :checked="selectedTagIds.includes({{ $tag->id }})"
-                                               @change="toggleTag({{ $tag->id }})"
+                                               :value="tag.id"
+                                               :checked="selectedTagIds.includes(tag.id)"
+                                               @change="toggleTag(tag.id)"
                                                class="rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500">
-                                        <span class="ml-2 text-sm" style="color: {{ $tag->color }}">{{ $tag->tag_name }}</span>
+                                        <span class="ml-2 text-sm" :style="'color: ' + tag.color" x-text="tag.tag_name"></span>
                                     </label>
-                                @endforeach
+                                </template>
                             </div>
                         </div>
 
@@ -255,6 +262,11 @@
                     );
                 },
 
+                get hasExactTagMatch() {
+                    const query = this.autocompleteQuery.toLowerCase();
+                    return this.tags.some(t => t.tag_name.toLowerCase() === query);
+                },
+
                 handleInput(event) {
                     const input = this.taskName;
                     const cursorPos = event.target.selectionStart;
@@ -283,9 +295,14 @@
                 handleKeydown(event) {
                     if (!this.showAutocomplete) return;
 
-                    const maxIndex = this.autocompleteType === 'project'
-                        ? this.filteredProjects.length - 1
-                        : this.filteredTags.length - 1;
+                    let maxIndex;
+                    if (this.autocompleteType === 'project') {
+                        maxIndex = this.filteredProjects.length - 1;
+                    } else {
+                        // Add 1 for the "create new tag" option if it's visible
+                        const hasCreate = this.autocompleteQuery.length > 0 && !this.hasExactTagMatch;
+                        maxIndex = this.filteredTags.length - 1 + (hasCreate ? 1 : 0);
+                    }
 
                     if (event.key === 'ArrowDown') {
                         event.preventDefault();
@@ -300,8 +317,13 @@
                             const selected = this.filteredProjects[this.autocompleteIndex]?.name;
                             if (selected) this.selectAutocomplete(selected);
                         } else if (this.autocompleteType === 'tag') {
-                            const selected = this.filteredTags[this.autocompleteIndex]?.tag_name;
-                            if (selected) this.selectAutocomplete(selected);
+                            // If index is past the filtered tags, it's the "create" option
+                            if (this.autocompleteIndex >= this.filteredTags.length) {
+                                this.createAndSelectTag(this.autocompleteQuery);
+                            } else {
+                                const selected = this.filteredTags[this.autocompleteIndex]?.tag_name;
+                                if (selected) this.selectAutocomplete(selected);
+                            }
                         }
                     } else if (event.key === 'Escape') {
                         event.preventDefault();
@@ -350,6 +372,52 @@
                         inputEl.focus();
                         inputEl.setSelectionRange(newBefore.length, newBefore.length);
                     });
+                },
+
+                async createAndSelectTag(tagName) {
+                    try {
+                        const response = await fetch('{{ route("tags.quickStore") }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                'Accept': 'application/json',
+                            },
+                            body: JSON.stringify({ tag_name: tagName }),
+                        });
+
+                        if (!response.ok) {
+                            const err = await response.json();
+                            alert(err.message || 'Failed to create tag.');
+                            return;
+                        }
+
+                        const newTag = await response.json();
+
+                        // Add to local tags list
+                        this.tags.push(newTag);
+
+                        // Select it as if the user chose it from autocomplete
+                        this.selectedTagIds.push(newTag.id);
+
+                        // Replace @query in the task name
+                        const inputEl = this.$refs.nameInput;
+                        const cursorPos = inputEl.selectionStart;
+                        const beforeCursor = this.taskName.substring(0, cursorPos);
+                        const afterCursor = this.taskName.substring(cursorPos);
+                        const slug = newTag.tag_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        const newBefore = beforeCursor.replace(/@\w*$/, '@' + slug + ' ');
+
+                        this.taskName = newBefore + afterCursor;
+                        this.showAutocomplete = false;
+
+                        this.$nextTick(() => {
+                            inputEl.focus();
+                            inputEl.setSelectionRange(newBefore.length, newBefore.length);
+                        });
+                    } catch (e) {
+                        alert('Failed to create tag. Please try again.');
+                    }
                 },
 
                 hideAutocomplete() {

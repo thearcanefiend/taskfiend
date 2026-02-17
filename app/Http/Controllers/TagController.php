@@ -87,6 +87,29 @@ class TagController extends Controller
             ->with('success', 'Tag updated successfully.');
     }
 
+    public function quickStore(Request $request)
+    {
+        $validated = $request->validate([
+            'tag_name' => 'required|string|max:255|unique:tags,tag_name',
+        ]);
+
+        $colors = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'];
+        $color = $colors[array_rand($colors)];
+
+        $tag = Tag::create([
+            'tag_name' => $validated['tag_name'],
+            'color' => $color,
+        ]);
+
+        $this->logChange($tag, 'created tag');
+
+        return response()->json([
+            'id' => $tag->id,
+            'tag_name' => $tag->tag_name,
+            'color' => $tag->color,
+        ]);
+    }
+
     public function destroy(Tag $tag)
     {
         $tag->tasks()->detach();

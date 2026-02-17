@@ -30,6 +30,7 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('projects', ProjectController::class);
     Route::resource('tags', TagController::class);
+    Route::post('/tags/quick-create', [TagController::class, 'quickStore'])->name('tags.quickStore');
 
     Route::post('/tasks/{task}/comments', [CommentController::class, 'store'])->name('comments.store');
     Route::delete('/tasks/{task}/comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
