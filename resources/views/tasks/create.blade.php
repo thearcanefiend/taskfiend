@@ -236,14 +236,16 @@
                 autocompleteType: null,
                 autocompleteIndex: 0,
                 autocompleteQuery: '',
+                confirmedTagSlugs: [],
 
                 get cleanedTaskName() {
-                    // Remove #project and @tag syntax from task name before submitting
-                    return this.taskName
-                        .replace(/#\w+/g, '')
-                        .replace(/@\w+/g, '')
-                        .trim()
-                        .replace(/\s+/g, ' ');
+                    let name = this.taskName;
+                    // Only remove @slugs that were actually selected as tags
+                    for (const slug of this.confirmedTagSlugs) {
+                        name = name.replace(new RegExp('@' + slug + '(?=\\s|$)', 'g'), '');
+                    }
+                    name = name.replace(/#\w+/g, '');
+                    return name.trim().replace(/\s+/g, ' ');
                 },
 
                 get filteredProjects() {
@@ -362,6 +364,7 @@
                         if (tag && !this.selectedTagIds.includes(tag.id)) {
                             this.selectedTagIds.push(tag.id);
                         }
+                        this.confirmedTagSlugs.push(slug);
                     }
 
                     this.taskName = newBefore + afterCursor;
@@ -399,6 +402,7 @@
 
                         // Select it as if the user chose it from autocomplete
                         this.selectedTagIds.push(newTag.id);
+                        this.confirmedTagSlugs.push(newTag.tag_name.toLowerCase().replace(/[^a-z0-9]/g, ''));
 
                         // Replace @query in the task name
                         const inputEl = this.$refs.nameInput;
